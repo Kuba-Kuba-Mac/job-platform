@@ -1,0 +1,26 @@
+# Окружение и секреты
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Django
+db.sqlite3
+backend/media/
+backend/staticfiles/
+
+# Node
+node_modules/
+dist/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
