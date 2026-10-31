@@ -5,13 +5,14 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import CompanyPage from "./pages/CompanyPage.jsx";
 import ResumesPage from "./pages/ResumesPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
+import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 
 // F-06 на клиенте: прячем страницы чужой роли. Настоящая проверка — на сервере.
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth();
   if (loading) return <p className="muted">Загрузка…</p>;
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <p className="error">Эта страница недоступна для вашей роли.</p>;
+  if (role && user.role !== role) return <p className="error">Недоступно для вашей роли.</p>;
   return children;
 }
 
@@ -27,8 +28,14 @@ function Header() {
       <nav>
         {user?.role === "seeker" && <Link to="/resumes">Мои резюме</Link>}
         {user?.role === "employer" && <Link to="/company">Моя компания</Link>}
+        {user?.role === "admin" && (
+          <a href="/admin/" target="_blank" rel="noreferrer">
+            Админка
+          </a>
+        )}
         {user ? (
           <>
+            <Link to="/settings/password">Сменить пароль</Link>
             <span className="muted small">{user.email}</span>
             <button
               className="link"
@@ -75,6 +82,14 @@ export default function App() {
             element={
               <RequireRole role="seeker">
                 <ResumesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/settings/password"
+            element={
+              <RequireRole>
+                <ChangePasswordPage />
               </RequireRole>
             }
           />

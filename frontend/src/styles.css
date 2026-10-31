@@ -72,6 +72,20 @@ input[type="radio"] { width: auto; }
 .badge.approved { background: #e9f5f0; color: var(--accent); }
 .badge.rejected { background: #fde8e6; color: var(--danger); }
 
+/* F-03: индикатор надёжности пароля */
+.strength { display: grid; gap: 0.5rem; }
+.strength-bar { display: flex; gap: 4px; flex: 1; max-width: 160px; }
+.strength-bar span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.strength-bar.weak .on { background: var(--danger); }
+.strength-bar.medium .on { background: var(--warn); }
+.strength-bar.strong .on { background: var(--accent); }
+.strength-label.weak { color: var(--danger); }
+.strength-label.medium { color: var(--warn); }
+.strength-label.strong { color: var(--accent); }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
+.rules li.ok { color: var(--accent); }
+.card > .link { justify-self: start; }
+
 .logo-preview { width: 80px; height: 80px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }

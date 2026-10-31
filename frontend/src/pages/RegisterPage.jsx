@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import PasswordStrength from "../components/PasswordStrength.jsx";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -51,6 +52,7 @@ export default function RegisterPage() {
         Пароль (минимум 8 символов)
         <input type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={set("password")} />
       </label>
+      <PasswordStrength password={form.password} />
       <label>
         Повторите пароль
         <input type="password" required autoComplete="new-password" value={form.password2} onChange={set("password2")} />
