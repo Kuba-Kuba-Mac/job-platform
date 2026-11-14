@@ -1,5 +1,10 @@
-"""Тесты F-01, F-02, F-03, F-06."""
+"""Тесты F-01, F-02, F-03, F-04, F-06."""
 
+import re
+from unittest import mock
+from urllib.parse import parse_qs, urlparse
+
+from django.core import mail
 from django.test import override_settings
 from django.urls import path
 from rest_framework import status
@@ -166,6 +171,165 @@ class PasswordChangeTests(APITestCase):
         self.client.credentials()
         resp = self.change(STRONG_PASSWORD, self.NEW_PASSWORD)
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+def link_params(message, path):
+    """Достаёт uid и token из ссылки в письме и проверяет, что ссылка ведёт на нужную страницу frontend."""
+    url = re.search(r"https?://\S+", message.body).group(0)
+    parsed = urlparse(url)
+    assert parsed.path == path, url
+    query = parse_qs(parsed.query)
+    return {"uid": query["uid"][0], "token": query["token"][0]}
+
+
+@override_settings(FRONTEND_URL="http://front.test")
+class EmailVerificationTests(APITestCase):
+    def register(self, email="new@x.kg"):
+        return self.client.post(
+            "/api/auth/register/",
+            # email_verified в запросе игнорируется — подтвердить можно только по ссылке
+            {"email": email, "password": STRONG_PASSWORD, "role": "seeker", "email_verified": True},
+        )
+
+    def test_register_sends_verification_email(self):
+        resp = self.register()
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertFalse(resp.data["user"]["email_verified"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["new@x.kg"])
+        self.assertIn("http://front.test/verify-email?", mail.outbox[0].body)
+
+    def test_login_allowed_without_verification(self):
+        self.register()
+        resp = self.client.post("/api/auth/login/", {"email": "new@x.kg", "password": STRONG_PASSWORD})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(resp.data["user"]["email_verified"])
+
+    def test_verify_and_link_is_single_use(self):
+        self.register()
+        params = link_params(mail.outbox[0], "/verify-email")
+
+        resp = self.client.post("/api/auth/verify-email/", params)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertTrue(User.objects.get(email="new@x.kg").email_verified)
+
+        resp = self.client.post("/api/auth/verify-email/", params)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("token", resp.data)
+
+    def test_invalid_token_and_uid(self):
+        self.register()
+        params = link_params(mail.outbox[0], "/verify-email")
+        for bad in [{**params, "token": "abc-123"}, {**params, "uid": "!!!"}, {**params, "uid": "OTk5OQ"}]:
+            resp = self.client.post("/api/auth/verify-email/", bad)
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, bad)
+        self.assertFalse(User.objects.get(email="new@x.kg").email_verified)
+
+    def test_token_of_other_user_rejected(self):
+        self.register("a@x.kg")
+        self.register("b@x.kg")
+        a = link_params(mail.outbox[0], "/verify-email")
+        b = link_params(mail.outbox[1], "/verify-email")
+        resp = self.client.post("/api/auth/verify-email/", {"uid": a["uid"], "token": b["token"]})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_resend(self):
+        user = User.objects.create_user("r@x.kg", STRONG_PASSWORD)
+        self.assertEqual(self.client.post("/api/auth/verify-email/resend/").status_code, 401)
+
+        self.client.force_authenticate(user)
+        resp = self.client.post("/api/auth/verify-email/resend/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertEqual(len(mail.outbox), 1)
+
+        self.client.post("/api/auth/verify-email/", link_params(mail.outbox[0], "/verify-email"))
+        user.refresh_from_db()
+        self.client.force_authenticate(user)
+        resp = self.client.post("/api/auth/verify-email/resend/")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_mail_failure_does_not_break_registration(self):
+        with mock.patch("accounts.emails.send_mail", side_effect=OSError("SMTP down")):
+            with self.assertLogs("accounts.emails", level="ERROR"):
+                resp = self.register()
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(User.objects.filter(email="new@x.kg").exists())
+
+
+@override_settings(FRONTEND_URL="http://front.test")
+class PasswordResetTests(APITestCase):
+    NEW_PASSWORD = "Fresh-Pass-2027"
+
+    def setUp(self):
+        self.user = User.objects.create_user("reset@x.kg", STRONG_PASSWORD)
+
+    def request_reset(self, email):
+        return self.client.post("/api/auth/password/reset/", {"email": email})
+
+    def confirm(self, params, password=None):
+        return self.client.post(
+            "/api/auth/password/reset/confirm/", {**params, "new_password": password or self.NEW_PASSWORD}
+        )
+
+    def login(self, password):
+        return self.client.post("/api/auth/login/", {"email": "reset@x.kg", "password": password})
+
+    def test_same_response_for_unknown_email(self):
+        known = self.request_reset("RESET@x.kg")
+        unknown = self.request_reset("nobody@x.kg")
+        self.assertEqual(known.status_code, status.HTTP_200_OK)
+        self.assertEqual(unknown.status_code, known.status_code)
+        self.assertEqual(unknown.data, known.data)
+        # письмо ушло только существующему пользователю
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["reset@x.kg"])
+        self.assertIn("http://front.test/reset-password?", mail.outbox[0].body)
+
+    def test_blocked_user_gets_no_email(self):
+        self.user.is_active = False
+        self.user.save()
+        resp = self.request_reset("reset@x.kg")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reset_password_revokes_tokens_and_link_is_single_use(self):
+        old_refresh = self.login(STRONG_PASSWORD).data["refresh"]
+        self.request_reset("reset@x.kg")
+        params = link_params(mail.outbox[0], "/reset-password")
+
+        resp = self.confirm(params)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertEqual(self.login(STRONG_PASSWORD).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self.login(self.NEW_PASSWORD).status_code, status.HTTP_200_OK)
+        # старые сессии завершены
+        resp = self.client.post("/api/auth/refresh/", {"refresh": old_refresh})
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        # повторно ссылкой воспользоваться нельзя
+        resp = self.confirm(params, "Another-Pass-2028")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_weak_password_rejected(self):
+        self.request_reset("reset@x.kg")
+        params = link_params(mail.outbox[0], "/reset-password")
+        resp = self.confirm(params, "12345678")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", resp.data)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(STRONG_PASSWORD))
+
+    def test_invalid_token(self):
+        self.request_reset("reset@x.kg")
+        params = link_params(mail.outbox[0], "/reset-password")
+        resp = self.confirm({**params, "token": "bad-token"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verification_token_cannot_reset_password(self):
+        self.client.force_authenticate(self.user)
+        self.client.post("/api/auth/verify-email/resend/")
+        self.client.force_authenticate(None)
+        params = link_params(mail.outbox[0], "/verify-email")
+        self.assertEqual(self.confirm(params).status_code, status.HTTP_400_BAD_REQUEST)
 
 
 @override_settings(ROOT_URLCONF=__name__)

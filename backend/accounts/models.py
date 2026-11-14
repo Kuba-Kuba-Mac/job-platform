@@ -32,6 +32,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField("email", unique=True)
     role = models.CharField("роль", max_length=16, choices=Role.choices, default=Role.SEEKER)
+    # F-04: вход без подтверждения не блокируется, но интерфейс просит подтвердить адрес
+    email_verified = models.BooleanField("email подтверждён", default=False)
     is_active = models.BooleanField("активен", default=True)
     is_staff = models.BooleanField("доступ в админку", default=False)
     created_at = models.DateTimeField("создан", auto_now_add=True)

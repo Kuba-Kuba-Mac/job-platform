@@ -19,7 +19,8 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me")
+# Не короче 32 символов: иначе PyJWT предупреждает о слабом ключе подписи HS256
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me-in-production-please")
 DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0")
 
@@ -145,3 +146,19 @@ SPECTACULAR_SETTINGS = {
 }
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
+# F-04: письма подтверждения email и сброса пароля ведут на страницы frontend
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Стажировки KG <noreply@stazhirovki.kg>")
+
+# Если задан EMAIL_HOST — отправляем через SMTP (в Docker это Mailpit), иначе печатаем письма в консоль
+if os.environ.get("EMAIL_HOST"):
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.environ["EMAIL_HOST"]
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "25"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+    EMAIL_TIMEOUT = 10
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
