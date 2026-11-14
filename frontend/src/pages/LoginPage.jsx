@@ -36,6 +36,9 @@ export default function LoginPage() {
         <input type="password" required autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
       </label>
       {error && <p className="error">{error}</p>}
+      <Link to="/forgot-password" className="small">
+        Забыли пароль?
+      </Link>
       <button className="btn" disabled={busy}>
         {busy ? "Входим…" : "Войти"}
       </button>

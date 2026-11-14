@@ -92,3 +92,15 @@ input[type="radio"] { width: auto; }
 .error { color: var(--danger); margin: 0; }
 .success { color: var(--accent); margin: 0; }
 .pre { white-space: pre-line; }
+
+/* Состояния страниц: загрузка, ошибка, пусто */
+.state { margin: 1rem 0; }
+.error-state { display: grid; gap: 0.4rem; justify-items: start; }
+.empty { padding: 1.5rem; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+
+/* F-04: плашка «Подтвердите email» */
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem; background: #fff4dc; border-bottom: 1px solid #f0dca8; font-size: 0.9rem;
+}
+.card > a.small { justify-self: start; }

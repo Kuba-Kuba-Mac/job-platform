@@ -6,6 +6,10 @@ import CompanyPage from "./pages/CompanyPage.jsx";
 import ResumesPage from "./pages/ResumesPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 
 // F-06 на клиенте: прячем страницы чужой роли. Настоящая проверка — на сервере.
 function RequireRole({ role, children }) {
@@ -64,11 +68,15 @@ export default function App() {
   return (
     <>
       <Header />
+      <VerifyEmailBanner />
       <main className="container">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route
             path="/company"
             element={
