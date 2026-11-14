@@ -14,6 +14,7 @@ from .serializers import (
     DetailSerializer,
     LoginSerializer,
     LogoutSerializer,
+    MeSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -174,11 +175,17 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         return Response({"detail": "Пароль изменён. Войдите с новым паролем."})
 
 
-class MeView(generics.RetrieveAPIView):
-    """GET /api/auth/me/ — текущий пользователь и его роль."""
+class MeView(generics.RetrieveUpdateAPIView):
+    """F-05: «Мой профиль».
 
-    serializer_class = UserSerializer
+    GET   /api/auth/me/ — текущий пользователь и его роль
+    PATCH /api/auth/me/ — изменить имя, телефон, город или email.
+    При смене email адрес снова требует подтверждения (F-04).
+    """
+
+    serializer_class = MeSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_object(self):
         return self.request.user

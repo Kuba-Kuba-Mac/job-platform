@@ -332,6 +332,92 @@ class PasswordResetTests(APITestCase):
         self.assertEqual(self.confirm(params).status_code, status.HTTP_400_BAD_REQUEST)
 
 
+@override_settings(FRONTEND_URL="http://front.test")
+class MyProfileTests(APITestCase):
+    url = "/api/auth/me/"
+
+    def setUp(self):
+        self.user = User.objects.create_user("me@x.kg", STRONG_PASSWORD, email_verified=True)
+        self.client.force_authenticate(self.user)
+
+    def patch(self, data):
+        return self.client.patch(self.url, data, format="json")
+
+    def test_requires_auth(self):
+        self.client.force_authenticate(None)
+        self.assertEqual(self.patch({"full_name": "X"}).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_profile(self):
+        resp = self.patch({"full_name": "Айгуль Тестова", "phone": "+996 555 123 456", "city": "Ош"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertEqual(resp.data["full_name"], "Айгуль Тестова")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.city, "Ош")
+        # email не менялся — повторное подтверждение не нужно
+        self.assertTrue(self.user.email_verified)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_put_not_allowed(self):
+        resp = self.client.put(self.url, {"email": "me@x.kg"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_cannot_change_role_or_verification(self):
+        self.user.email_verified = False
+        self.user.save()
+        resp = self.patch({"role": "admin", "email_verified": True, "full_name": "Хитрый"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, Role.SEEKER)
+        self.assertFalse(self.user.email_verified)
+        self.assertEqual(self.user.full_name, "Хитрый")
+
+    def test_change_email_requires_new_verification(self):
+        resp = self.patch({"email": "New@X.kg"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertEqual(resp.data["email"], "new@x.kg")
+        self.assertFalse(resp.data["email_verified"])
+        self.assertEqual(mail.outbox[0].to, ["new@x.kg"])
+
+        resp = self.client.post("/api/auth/verify-email/", link_params(mail.outbox[0], "/verify-email"))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.email_verified)
+
+    def test_old_verification_link_invalid_after_email_change(self):
+        self.user.email_verified = False
+        self.user.save()
+        self.client.post("/api/auth/verify-email/resend/")
+        old_link = link_params(mail.outbox[0], "/verify-email")
+        self.patch({"email": "other@x.kg"})
+        resp = self.client.post("/api/auth/verify-email/", old_link)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_email_taken_case_insensitive(self):
+        User.objects.create_user("taken@x.kg", STRONG_PASSWORD)
+        resp = self.patch({"email": "TAKEN@x.kg"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", resp.data)
+
+    def test_same_email_in_other_case_keeps_verification(self):
+        resp = self.patch({"email": "ME@X.KG"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertTrue(resp.data["email_verified"])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_invalid_phone(self):
+        resp = self.patch({"phone": "позвоните мне"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("phone", resp.data)
+
+    def test_login_returns_profile_fields(self):
+        self.user.full_name = "Бакыт"
+        self.user.save()
+        resp = self.client.post("/api/auth/login/", {"email": "me@x.kg", "password": STRONG_PASSWORD})
+        for field in ["email_verified", "full_name", "phone", "city"]:
+            self.assertIn(field, resp.data["user"])
+        self.assertEqual(resp.data["user"]["full_name"], "Бакыт")
+
+
 @override_settings(ROOT_URLCONF=__name__)
 class RolePermissionTests(APITestCase):
     def test_roles(self):

@@ -1,8 +1,11 @@
+import re
+
 from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .emails import send_verification_email
 from .models import Role, User
 from .tokens import email_verification_token, password_reset_token, user_from_uid
 
@@ -12,8 +15,40 @@ INVALID_LINK = "Ссылка недействительна или устаре�
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "role", "email_verified", "created_at"]
+        fields = ["id", "email", "role", "email_verified", "full_name", "phone", "city", "created_at"]
         read_only_fields = fields
+
+
+PHONE_RE = re.compile(r"^\+?[\d\s()-]{5,20}$")
+
+
+class MeSerializer(UserSerializer):
+    """F-05: «Мой профиль». Роль и подтверждение email пользователь изменить не может."""
+
+    class Meta(UserSerializer.Meta):
+        read_only_fields = ["id", "role", "email_verified", "created_at"]
+
+    def validate_email(self, value):
+        value = value.lower()
+        if User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Пользователь с таким email уже существует.")
+        return value
+
+    def validate_phone(self, value):
+        value = value.strip()
+        if value and not PHONE_RE.match(value):
+            raise serializers.ValidationError("Укажите телефон в формате +996 555 123 456.")
+        return value
+
+    def update(self, instance, validated_data):
+        email_changed = "email" in validated_data and validated_data["email"] != instance.email
+        if email_changed:
+            # новый адрес нужно подтвердить заново
+            validated_data["email_verified"] = False
+        user = super().update(instance, validated_data)
+        if email_changed:
+            send_verification_email(user)
+        return user
 
 
 class RegisterSerializer(serializers.ModelSerializer):

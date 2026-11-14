@@ -9,10 +9,11 @@ class UserAdmin(BaseUserAdmin):
     ordering = ["-created_at"]
     list_display = ["email", "role", "email_verified", "is_active", "is_staff", "created_at"]
     list_filter = ["role", "email_verified", "is_active", "is_staff"]
-    search_fields = ["email"]
+    search_fields = ["email", "full_name"]
     readonly_fields = ["created_at", "last_login"]
     fieldsets = (
         (None, {"fields": ("email", "email_verified", "password")}),
+        ("Профиль", {"fields": ("full_name", "phone", "city")}),
         ("Роль и доступ", {"fields": ("role", "is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Даты", {"fields": ("last_login", "created_at")}),
     )
