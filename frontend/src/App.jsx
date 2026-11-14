@@ -9,12 +9,14 @@ import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
+import { Loading } from "./components/States.jsx";
 
 // F-06 на клиенте: прячем страницы чужой роли. Настоящая проверка — на сервере.
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth();
-  if (loading) return <p className="muted">Загрузка…</p>;
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
   if (role && user.role !== role) return <p className="error">Недоступно для вашей роли.</p>;
   return children;
@@ -39,8 +41,9 @@ function Header() {
         )}
         {user ? (
           <>
-            <Link to="/settings/password">Сменить пароль</Link>
-            <span className="muted small">{user.email}</span>
+            <Link to="/profile" className="small user-link" title="Мой профиль">
+              {user.full_name || user.email}
+            </Link>
             <button
               className="link"
               onClick={async () => {
@@ -90,6 +93,14 @@ export default function App() {
             element={
               <RequireRole role="seeker">
                 <ResumesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RequireRole>
+                <ProfilePage />
               </RequireRole>
             }
           />

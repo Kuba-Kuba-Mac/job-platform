@@ -104,3 +104,8 @@ input[type="radio"] { width: auto; }
   padding: 0.6rem 1rem; background: #fff4dc; border-bottom: 1px solid #f0dca8; font-size: 0.9rem;
 }
 .card > a.small { justify-self: start; }
+
+/* F-05: профиль */
+.warn { color: var(--warn); }
+.user-link { color: var(--text); max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-link:hover { color: var(--accent); }
