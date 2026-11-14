@@ -11,6 +11,8 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import MyVacanciesPage from "./pages/MyVacanciesPage.jsx";
+import PortfolioPage from "./pages/PortfolioPage.jsx";
+import SeekerPage from "./pages/SeekerPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -33,7 +35,12 @@ function Header() {
         Стажировки<span>KG</span>
       </Link>
       <nav>
-        {user?.role === "seeker" && <Link to="/resumes">Мои резюме</Link>}
+        {user?.role === "seeker" && (
+          <>
+            <Link to="/resumes">Мои резюме</Link>
+            <Link to="/portfolio">Проекты и GitHub</Link>
+          </>
+        )}
         {user?.role === "employer" && (
           <>
             <Link to="/company">Моя компания</Link>
@@ -107,6 +114,22 @@ export default function App() {
             element={
               <RequireRole role="employer">
                 <MyVacanciesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/portfolio"
+            element={
+              <RequireRole role="seeker">
+                <PortfolioPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/seekers/:id"
+            element={
+              <RequireRole>
+                <SeekerPage />
               </RequireRole>
             }
           />

@@ -125,3 +125,8 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .vacancy-card { gap: 0.4rem; align-content: start; }
 .vacancy-card p { margin: 0; }
 .salary { font-weight: 600; }
+
+/* S-08: портфолио */
+.stack { display: grid; gap: 1.5rem; }
+.card.inset { background: var(--bg); margin-top: 0.75rem; }
+.card p { margin: 0; }
