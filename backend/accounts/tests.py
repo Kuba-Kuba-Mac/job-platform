@@ -1,10 +1,12 @@
 """Тесты F-01, F-02, F-03, F-04, F-06."""
 
 import re
+from io import StringIO
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
 from django.core import mail
+from django.core.management import call_command
 from django.test import override_settings
 from django.urls import path
 from rest_framework import status
@@ -12,6 +14,12 @@ from rest_framework.response import Response
 from rest_framework.test import APITestCase
 from rest_framework.views import APIView
 
+from companies.models import Company
+from profiles.models import Project, SeekerProfile
+from resumes.models import Resume
+from vacancies.models import Vacancy
+
+from .management.commands.seed_demo import DEMO_PASSWORD
 from .models import Role, User
 from .permissions import IsEmployer, IsSeeker
 
@@ -416,6 +424,49 @@ class MyProfileTests(APITestCase):
         for field in ["email_verified", "full_name", "phone", "city"]:
             self.assertIn(field, resp.data["user"])
         self.assertEqual(resp.data["user"]["full_name"], "Бакыт")
+
+
+class SeedDemoTests(APITestCase):
+    def seed(self, *args):
+        call_command("seed_demo", *args, stdout=StringIO())
+
+    def counts(self):
+        return {
+            "users": User.objects.count(),
+            "companies": Company.objects.count(),
+            "vacancies": Vacancy.objects.count(),
+            "resumes": Resume.objects.count(),
+            "projects": Project.objects.count(),
+        }
+
+    def test_seed_is_idempotent(self):
+        self.seed()
+        first = self.counts()
+        self.seed()
+        self.assertEqual(self.counts(), first)
+
+        self.assertGreaterEqual(Vacancy.objects.published().count(), 10)
+        self.assertEqual(Vacancy.objects.filter(moderation_status="pending").count(), 1)
+        self.assertEqual(Vacancy.objects.filter(is_archived=True).count(), 1)
+        self.assertEqual(Company.objects.filter(moderation_status="pending").count(), 1)
+        self.assertEqual(SeekerProfile.objects.count(), 3)
+        self.assertTrue(all(u.email.endswith("@demo.kg") and u.email_verified for u in User.objects.all()))
+
+    def test_demo_accounts_can_login(self):
+        self.seed()
+        for email, role in [("admin@demo.kg", "admin"), ("employer@demo.kg", "employer"), ("seeker@demo.kg", "seeker")]:
+            resp = self.client.post("/api/auth/login/", {"email": email, "password": DEMO_PASSWORD})
+            self.assertEqual(resp.status_code, status.HTTP_200_OK, email)
+            self.assertEqual(resp.data["user"]["role"], role)
+
+    def test_reset_removes_only_demo_data(self):
+        real = User.objects.create_user("real@x.kg", STRONG_PASSWORD)
+        self.seed()
+        demo_vacancy = Vacancy.objects.first()
+        self.seed("--reset")
+        self.assertTrue(User.objects.filter(pk=real.pk).exists())
+        self.assertFalse(Vacancy.objects.filter(pk=demo_vacancy.pk).exists())
+        self.assertGreaterEqual(Vacancy.objects.published().count(), 10)
 
 
 @override_settings(ROOT_URLCONF=__name__)

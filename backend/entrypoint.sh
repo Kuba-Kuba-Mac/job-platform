@@ -11,4 +11,9 @@ fi
 
 python manage.py migrate --noinput
 
+# Вымышленные демо-данные (@demo.kg). Повторный запуск ничего не дублирует.
+if [ "$SEED_DEMO" = "true" ]; then
+  python manage.py seed_demo
+fi
+
 exec "$@"
