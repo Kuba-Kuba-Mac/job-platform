@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { useCallback, useEffect, useState } from "react";
+import { api, errorText } from "../api.js";
+import { Empty, ErrorState, Loading } from "../components/States.jsx";
+import { splitList } from "../labels.js";
 
 const EMPTY = {
   title: "",
@@ -15,27 +17,22 @@ const EMPTY = {
   languages: "",
 };
 
-const splitList = (s) =>
-  s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
 // S-01: список своих резюме + форма создания/редактирования
 export default function ResumesPage() {
-  const [resumes, setResumes] = useState([]);
+  const [resumes, setResumes] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [editing, setEditing] = useState(null); // null — список, "new" или id
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState("");
 
-  const load = () =>
+  const load = useCallback(() => {
+    setLoadError("");
     api("/resumes/")
       .then((data) => setResumes(data.results))
-      .catch((err) => setError(err.message));
-
-  useEffect(() => {
-    load();
+      .catch((err) => setLoadError(errorText(err)));
   }, []);
+
+  useEffect(load, [load]);
 
   function startEdit(resume) {
     setError("");
@@ -74,11 +71,18 @@ export default function ResumesPage() {
 
   async function onDelete(id) {
     if (!confirm("Удалить резюме?")) return;
-    await api(`/resumes/${id}/`, { method: "DELETE" });
-    load();
+    try {
+      await api(`/resumes/${id}/`, { method: "DELETE" });
+      load();
+    } catch (err) {
+      setLoadError(errorText(err));
+    }
   }
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  if (loadError) return <ErrorState message={loadError} onRetry={load} />;
+  if (!resumes) return <Loading />;
 
   if (editing !== null) {
     return (
@@ -149,8 +153,7 @@ export default function ResumesPage() {
           + Новое резюме
         </button>
       </div>
-      {error && <p className="error">{error}</p>}
-      {resumes.length === 0 && <p className="muted">Пока нет ни одного резюме.</p>}
+      {resumes.length === 0 && <Empty>Пока нет ни одного резюме. Создайте первое — его увидят работодатели.</Empty>}
       <ul className="list">
         {resumes.map((r) => (
           <li key={r.id} className="card">
