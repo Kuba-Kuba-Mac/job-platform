@@ -10,6 +10,7 @@ import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import MyVacanciesPage from "./pages/MyVacanciesPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -33,7 +34,12 @@ function Header() {
       </Link>
       <nav>
         {user?.role === "seeker" && <Link to="/resumes">Мои резюме</Link>}
-        {user?.role === "employer" && <Link to="/company">Моя компания</Link>}
+        {user?.role === "employer" && (
+          <>
+            <Link to="/company">Моя компания</Link>
+            <Link to="/vacancies/my">Мои вакансии</Link>
+          </>
+        )}
         {user?.role === "admin" && (
           <a href="/admin/" target="_blank" rel="noreferrer">
             Админка
@@ -93,6 +99,14 @@ export default function App() {
             element={
               <RequireRole role="seeker">
                 <ResumesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/vacancies/my"
+            element={
+              <RequireRole role="employer">
+                <MyVacanciesPage />
               </RequireRole>
             }
           />
