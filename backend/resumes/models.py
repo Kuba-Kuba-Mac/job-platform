@@ -19,6 +19,12 @@ class Skill(models.Model):
     def normalize(name: str) -> str:
         return " ".join(name.split()).lower()
 
+    @classmethod
+    def from_names(cls, names) -> list["Skill"]:
+        """Список строк → навыки справочника; новые создаются, дубликаты и пустые строки отбрасываются."""
+        normalized = {cls.normalize(n) for n in names if n.strip()}
+        return [cls.objects.get_or_create(name=n)[0] for n in sorted(normalized)]
+
 
 class Resume(models.Model):
     """S-01: резюме соискателя. У одного соискателя может быть несколько резюме."""

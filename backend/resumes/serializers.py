@@ -55,9 +55,7 @@ class ResumeSerializer(serializers.ModelSerializer):
         return data
 
     def _set_skills(self, resume, names):
-        normalized = {Skill.normalize(n) for n in names if n.strip()}
-        skills = [Skill.objects.get_or_create(name=n)[0] for n in sorted(normalized)]
-        resume.skills.set(skills)
+        resume.skills.set(Skill.from_names(names))
 
     def create(self, validated_data):
         names = validated_data.pop("skills", [])
