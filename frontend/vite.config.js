@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// В dev-режиме запросы /api и /media проксируются на Django
+// В dev-режиме запросы /api, /media и админка Django проксируются на backend
 const backend = process.env.VITE_PROXY_TARGET || "http://localhost:8000";
 
 export default defineConfig({
@@ -11,6 +11,8 @@ export default defineConfig({
     proxy: {
       "/api": backend,
       "/media": backend,
+      "/admin": backend,
+      "/static": backend,
     },
   },
 });

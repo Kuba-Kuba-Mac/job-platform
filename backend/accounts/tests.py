@@ -107,6 +107,67 @@ class LoginLogoutTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class PasswordChangeTests(APITestCase):
+    url = "/api/auth/password/change/"
+    NEW_PASSWORD = "N3w-Secure-Pass!"
+
+    def setUp(self):
+        self.user = User.objects.create_user("pw@x.kg", STRONG_PASSWORD)
+        self.tokens = self.client.post("/api/auth/login/", {"email": "pw@x.kg", "password": STRONG_PASSWORD}).data
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.tokens['access']}")
+
+    def change(self, old, new):
+        return self.client.post(self.url, {"old_password": old, "new_password": new})
+
+    def login(self, password):
+        return self.client.post("/api/auth/login/", {"email": "pw@x.kg", "password": password})
+
+    def test_change_password(self):
+        resp = self.change(STRONG_PASSWORD, self.NEW_PASSWORD)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.password.startswith("argon2"))
+        self.assertEqual(self.login(STRONG_PASSWORD).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self.login(self.NEW_PASSWORD).status_code, status.HTTP_200_OK)
+
+    def test_new_tokens_work_and_old_refresh_revoked(self):
+        resp = self.change(STRONG_PASSWORD, self.NEW_PASSWORD)
+        # старый refresh отозван
+        old = self.client.post("/api/auth/refresh/", {"refresh": self.tokens["refresh"]})
+        self.assertEqual(old.status_code, status.HTTP_401_UNAUTHORIZED)
+        # новый refresh из ответа работает — текущая сессия не вылетает
+        new = self.client.post("/api/auth/refresh/", {"refresh": resp.data["refresh"]})
+        self.assertEqual(new.status_code, status.HTTP_200_OK)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['access']}")
+        self.assertEqual(self.client.get("/api/auth/me/").status_code, status.HTTP_200_OK)
+
+    def test_wrong_old_password(self):
+        resp = self.change("wrong-password", self.NEW_PASSWORD)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp.data["old_password"], ["Текущий пароль указан неверно."])
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(STRONG_PASSWORD))
+
+    def test_weak_new_password(self):
+        for weak in ["123", "12345678", "password"]:
+            resp = self.change(STRONG_PASSWORD, weak)
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST, weak)
+            self.assertIn("new_password", resp.data)
+
+    def test_same_password_rejected(self):
+        resp = self.change(STRONG_PASSWORD, STRONG_PASSWORD)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", resp.data)
+
+    def test_requires_auth(self):
+        self.client.credentials()
+        resp = self.change(STRONG_PASSWORD, self.NEW_PASSWORD)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 @override_settings(ROOT_URLCONF=__name__)
 class RolePermissionTests(APITestCase):
     def test_roles(self):

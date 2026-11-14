@@ -15,7 +15,8 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const user = await login(form.email, form.password);
-      navigate(user.role === "employer" ? "/company" : "/resumes");
+      // F-06: каждая роль попадает в свой кабинет
+      navigate({ seeker: "/resumes", employer: "/company" }[user.role] ?? "/");
     } catch (err) {
       setError(err.status === 401 ? "Неверный email или пароль" : err.message);
     } finally {
