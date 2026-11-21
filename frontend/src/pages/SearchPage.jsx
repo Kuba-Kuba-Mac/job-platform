@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, errorText } from "../api.js";
+import FavoriteButton from "../components/FavoriteButton.jsx";
 import Pagination from "../components/Pagination.jsx";
 import { Empty, ErrorState, Loading } from "../components/States.jsx";
 import VacancyCard from "../components/VacancyCard.jsx";
@@ -176,7 +177,7 @@ export default function SearchPage() {
           )}
           <ul className="list">
             {data?.results.map((v) => (
-              <VacancyCard key={v.id} vacancy={v} />
+              <VacancyCard key={v.id} vacancy={v} actions={<FavoriteButton vacancy={v} />} />
             ))}
           </ul>
           {data && (

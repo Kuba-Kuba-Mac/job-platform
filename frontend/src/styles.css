@@ -188,4 +188,13 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .vacancy-page { display: grid; gap: 1rem; }
 .vacancy-page h1 { font-size: clamp(1.4rem, 3.5vw, 2rem); }
 .salary.big { font-size: 1.25rem; }
+/* S-06: избранное */
+.fav-wrap { display: inline-grid; justify-items: end; flex-shrink: 0; }
+.fav {
+  font: inherit; font-size: 1.4rem; line-height: 1; background: none; border: 0; cursor: pointer;
+  color: var(--muted); padding: 0.2rem 0.35rem; border-radius: 6px;
+}
+.fav:hover { background: var(--bg); }
+.fav.on { color: #d49b00; }
+.card.unavailable { opacity: 0.7; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }

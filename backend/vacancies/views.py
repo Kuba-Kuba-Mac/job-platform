@@ -1,11 +1,13 @@
-from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from accounts.models import Role
 from accounts.permissions import IsEmployer
 from companies.models import Company, ModerationStatus
+from favorites.models import Favorite
 
 from .filters import ORDERINGS, filter_vacancies
 from .models import Vacancy
@@ -107,6 +109,11 @@ class VacancyViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = Vacancy.objects.published().select_related("company").prefetch_related("skills")
+        user = self.request.user
+        if user.is_authenticated and user.role == Role.SEEKER:
+            qs = qs.annotate(
+                favorite_id=Subquery(Favorite.objects.filter(user=user, vacancy=OuterRef("pk")).values("id")[:1])
+            )
         if self.action == "list":
             qs = filter_vacancies(qs, self.request.query_params)
         return qs

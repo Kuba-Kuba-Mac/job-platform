@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api, errorText } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import FavoriteButton from "../components/FavoriteButton.jsx";
 import { ErrorState, Loading } from "../components/States.jsx";
 import { EMPLOYMENT_TYPE, EXPERIENCE, SCHEDULE, formatSalary } from "../labels.js";
 
@@ -47,7 +48,10 @@ export default function VacancyPage() {
         ← К поиску вакансий
       </Link>
       <section className="card">
-        <h1>{v.title}</h1>
+        <div className="row between">
+          <h1>{v.title}</h1>
+          <FavoriteButton vacancy={v} />
+        </div>
         <p className="salary big">{formatSalary(v.salary_from, v.salary_to)}</p>
         <p className="muted">
           {c.name} · {v.city}

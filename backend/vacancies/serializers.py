@@ -74,15 +74,23 @@ class CityCountSerializer(serializers.Serializer):
 
 
 class PublicVacancySerializer(serializers.ModelSerializer):
-    """Опубликованная вакансия для всех посетителей."""
+    """Опубликованная вакансия для всех посетителей.
+
+    favorite_id — id записи в избранном текущего соискателя (S-06), иначе null.
+    Значение приходит аннотацией из запроса, поэтому лишних SQL-запросов нет.
+    """
 
     company = VacancyCompanySerializer(read_only=True)
     skills = serializers.SlugRelatedField(slug_field="name", many=True, read_only=True)
+    favorite_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Vacancy
-        fields = [*FIELDS, "company"]
+        fields = [*FIELDS, "company", "favorite_id"]
         read_only_fields = fields
+
+    def get_favorite_id(self, obj) -> int | None:
+        return getattr(obj, "favorite_id", None)
 
 
 class VacancyCompanyDetailSerializer(serializers.ModelSerializer):
