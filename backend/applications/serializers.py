@@ -6,7 +6,7 @@ from resumes.serializers import ResumeSerializer
 from vacancies.models import Vacancy
 from vacancies.serializers import PublicVacancySerializer
 
-from .models import Application
+from .models import Application, ApplicationStatus
 
 MAX_COVER_LETTER = 3000
 
@@ -85,3 +85,11 @@ class EmployerApplicationDetailSerializer(EmployerApplicationListSerializer):
     class Meta(EmployerApplicationListSerializer.Meta):
         fields = [*EmployerApplicationListSerializer.Meta.fields, "vacancy"]
         read_only_fields = fields
+
+
+class StatusChangeSerializer(serializers.Serializer):
+    """E-04: {"status": "invited"}. Вернуть отклик в «Новый» нельзя."""
+
+    status = serializers.ChoiceField(
+        choices=[ApplicationStatus.VIEWED, ApplicationStatus.INVITED, ApplicationStatus.REJECTED]
+    )

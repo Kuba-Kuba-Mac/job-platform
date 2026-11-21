@@ -4,6 +4,52 @@ import { api, errorText } from "../api.js";
 import { ErrorState, Loading } from "../components/States.jsx";
 import { EMPLOYER_STATUS } from "../labels.js";
 
+// E-04: те же переходы, что и на сервере (applications/services.py)
+const NEXT = {
+  new: ["invited", "rejected"],
+  viewed: ["invited", "rejected"],
+  invited: ["rejected"],
+  rejected: ["invited"],
+};
+const ACTION = { invited: "Пригласить", rejected: "Отказать" };
+
+function StatusControls({ application, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function set(status) {
+    if (status === "rejected" && !confirm("Отказать кандидату? Он увидит новый статус в своих откликах.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      onChange(await api(`/employer/applications/${application.id}/status/`, { method: "POST", body: { status } }));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="decision">
+      <p className="small muted">Кандидат сразу увидит новый статус в разделе «Мои отклики».</p>
+      <div className="row">
+        {NEXT[application.status].map((status) => (
+          <button
+            key={status}
+            className={status === "rejected" ? "btn secondary" : "btn"}
+            disabled={busy}
+            onClick={() => set(status)}
+          >
+            {ACTION[status]}
+          </button>
+        ))}
+      </div>
+      {error && <p className="error pre">{error}</p>}
+    </div>
+  );
+}
+
 function Field({ title, children }) {
   if (!children) return null;
   return (
@@ -51,6 +97,7 @@ export default function ApplicationDetailPage() {
         </p>
         <Link to={`/seekers/${a.seeker.id}`}>Профиль студента: проекты и GitHub →</Link>
         <Field title="Сопроводительное письмо">{a.cover_letter || "Без сопроводительного письма."}</Field>
+        <StatusControls application={a} onChange={setApplication} />
       </section>
 
       {r ? (

@@ -1,14 +1,20 @@
 from django.db import IntegrityError
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from accounts.permissions import IsEmployer, IsSeeker
 
 from .models import Application, ApplicationStatus
-from .serializers import ApplicationCreateSerializer, EmployerApplicationDetailSerializer, SeekerApplicationSerializer
-from .services import create_application
+from .serializers import (
+    ApplicationCreateSerializer,
+    EmployerApplicationDetailSerializer,
+    SeekerApplicationSerializer,
+    StatusChangeSerializer,
+)
+from .services import InvalidStatusTransition, change_status, create_application, mark_viewed
 
 
 @extend_schema_view(list=extend_schema(parameters=[OpenApiParameter("status", str, enum=ApplicationStatus.values)]))
@@ -60,8 +66,10 @@ class SeekerApplicationViewSet(
 
 
 class EmployerApplicationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """E-03: отклик на вакансию работодателя с полным резюме кандидата.
+    """E-03/E-04: отклик на вакансию работодателя с полным резюме кандидата.
 
+    GET  /api/employer/applications/{id}/        — открыть; новый отклик становится «Просмотрен»
+    POST /api/employer/applications/{id}/status/ — {"status": "viewed" | "invited" | "rejected"}
     Видны только отклики на свои вакансии; чужие — 404.
     Список откликов вакансии: GET /api/vacancies/my/{id}/applications/
     """
@@ -76,3 +84,19 @@ class EmployerApplicationViewSet(mixins.RetrieveModelMixin, viewsets.GenericView
             .select_related("seeker", "vacancy", "resume")
             .prefetch_related("resume__skills")
         )
+
+    def retrieve(self, request, *args, **kwargs):
+        application = mark_viewed(self.get_object(), by=request.user)
+        return Response(self.get_serializer(application).data)
+
+    @extend_schema(request=StatusChangeSerializer, responses={200: EmployerApplicationDetailSerializer})
+    @action(detail=True, methods=["post"], url_path="status")
+    def set_status(self, request, pk=None):
+        application = self.get_object()
+        serializer = StatusChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            change_status(application, serializer.validated_data["status"], changed_by=request.user)
+        except InvalidStatusTransition as exc:
+            raise ValidationError({"status": [str(exc)]}) from None
+        return Response(self.get_serializer(application).data)

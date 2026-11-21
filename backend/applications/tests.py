@@ -9,7 +9,7 @@ from resumes.models import Resume
 from vacancies.models import Vacancy
 
 from .models import Application, ApplicationStatus
-from .services import application_created
+from .services import application_created, application_status_changed
 
 PWD = "Str0ng-Pass-2026"
 APPLY = "/api/applications/"
@@ -229,3 +229,84 @@ class EmployerApplicationsTests(ApplicationsBase):
             )
         with self.assertNumQueries(3):  # вакансия (проверка владельца), count, страница
             self.client.get(f"/api/vacancies/my/{self.vacancy.id}/applications/")
+
+
+class StatusChangeTests(ApplicationsBase):
+    """E-04"""
+
+    def setUp(self):
+        super().setUp()
+        self.application = Application.objects.create(vacancy=self.vacancy, seeker=self.seeker, resume=self.resume)
+        self.url = f"/api/employer/applications/{self.application.id}/"
+        self.events = []
+        application_status_changed.connect(self.on_change, weak=False, dispatch_uid="test")
+        self.client.force_authenticate(self.employer)
+
+    def tearDown(self):
+        application_status_changed.disconnect(dispatch_uid="test")
+
+    def on_change(self, **kw):
+        self.events.append((kw["old_status"], kw["new_status"], kw["changed_by"].email))
+
+    def set_status(self, value):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(f"{self.url}status/", {"status": value}, format="json")
+
+    def seeker_status(self):
+        self.client.force_authenticate(self.seeker)
+        value = self.client.get(APPLY).data["results"][0]["status"]
+        self.client.force_authenticate(self.employer)
+        return value
+
+    def test_opening_marks_viewed(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.get(self.url)
+        self.assertEqual(resp.data["status"], "viewed")
+        self.assertEqual(self.seeker_status(), "viewed")
+        # повторное открытие не меняет статус и не шлёт событие
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.get(self.url)
+        self.assertEqual(self.events, [("new", "viewed", "hr@corp.kg")])
+
+    def test_invite_then_reject_and_seeker_sees_it(self):
+        resp = self.set_status("invited")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        self.assertEqual(self.seeker_status(), "invited")
+        self.assertEqual(self.set_status("rejected").data["status"], "rejected")
+        self.assertEqual(self.seeker_status(), "rejected")
+        self.assertEqual(self.events, [("new", "invited", "hr@corp.kg"), ("invited", "rejected", "hr@corp.kg")])
+        self.application.refresh_from_db()
+        self.assertGreater(self.application.status_changed_at, self.application.created_at)
+
+    def test_invalid_transitions(self):
+        self.assertEqual(self.set_status("new").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.set_status("hired").status_code, status.HTTP_400_BAD_REQUEST)
+        self.set_status("invited")
+        resp = self.set_status("viewed")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Нельзя сменить статус", resp.data["status"][0])
+        self.assertEqual(self.seeker_status(), "invited")
+
+    def test_same_status_is_noop(self):
+        self.set_status("invited")
+        self.assertEqual(self.set_status("invited").status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self.events), 1)
+
+    def test_foreign_application_404(self):
+        rival = User.objects.create_user("rival@corp.kg", PWD, role=Role.EMPLOYER)
+        Company.objects.create(owner=rival, name="Чужая", moderation_status="approved")
+        self.client.force_authenticate(rival)
+        self.assertEqual(self.set_status("invited").status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, ApplicationStatus.NEW)
+
+    def test_other_roles(self):
+        for user in (self.seeker, User.objects.create_user("a@x.kg", PWD, role=Role.ADMIN)):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.set_status("invited").status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.set_status("invited").status_code, status.HTTP_401_UNAUTHORIZED)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, ApplicationStatus.NEW)
+        self.assertEqual(self.events, [])
