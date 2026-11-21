@@ -184,4 +184,8 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .filters { position: static; }
   .search-bar { flex-direction: column; }
 }
+/* S-03: страница вакансии */
+.vacancy-page { display: grid; gap: 1rem; }
+.vacancy-page h1 { font-size: clamp(1.4rem, 3.5vw, 2rem); }
+.salary.big { font-size: 1.25rem; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }

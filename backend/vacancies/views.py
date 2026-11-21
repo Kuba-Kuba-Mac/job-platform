@@ -9,7 +9,12 @@ from companies.models import Company, ModerationStatus
 
 from .filters import ORDERINGS, filter_vacancies
 from .models import Vacancy
-from .serializers import CityCountSerializer, MyVacancySerializer, PublicVacancySerializer
+from .serializers import (
+    CityCountSerializer,
+    MyVacancySerializer,
+    PublicVacancyDetailSerializer,
+    PublicVacancySerializer,
+)
 
 
 @extend_schema_view(
@@ -96,6 +101,9 @@ class VacancyViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PublicVacancySerializer
     permission_classes = [permissions.AllowAny]
     lookup_value_regex = r"\d+"
+
+    def get_serializer_class(self):
+        return PublicVacancyDetailSerializer if self.action == "retrieve" else PublicVacancySerializer
 
     def get_queryset(self):
         qs = Vacancy.objects.published().select_related("company").prefetch_related("skills")

@@ -264,3 +264,44 @@ class SearchPerformanceTests(APITestCase):
         call_command("benchmark_search", "--count", "60", "--runs", "1", stdout=out)
         self.assertIn("требование < 2000 мс", out.getvalue())
         self.assertFalse(User.objects.filter(email__endswith="@bench.demo.kg").exists())
+
+
+class VacancyPageTests(APITestCase):
+    """S-03: страница вакансии с данными компании."""
+
+    def setUp(self):
+        employer = User.objects.create_user("hr@corp.kg", PWD, role=Role.EMPLOYER)
+        self.company = Company.objects.create(
+            owner=employer,
+            name="Тоо-Код",
+            description="Делаем веб-сервисы",
+            website="https://tookod.kg",
+            moderation_status=ModerationStatus.APPROVED,
+        )
+        self.vacancy = Vacancy.objects.create(
+            company=self.company,
+            title="Python",
+            description="Полное описание",
+            city="Бишкек",
+            moderation_status="approved",
+        )
+
+    def test_guest_sees_full_vacancy_and_company(self):
+        resp = self.client.get(f"/api/vacancies/{self.vacancy.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["description"], "Полное описание")
+        self.assertEqual(resp.data["company"]["description"], "Делаем веб-сервисы")
+        self.assertEqual(resp.data["company"]["website"], "https://tookod.kg")
+        self.assertNotIn("moderation_status", resp.data)
+        self.assertNotIn("owner", resp.data["company"])
+
+    def test_unpublished_vacancy_not_found(self):
+        for change in ({"moderation_status": "pending"}, {"moderation_status": "rejected"}, {"is_archived": True}):
+            Vacancy.objects.filter(pk=self.vacancy.pk).update(
+                **{"moderation_status": "approved", "is_archived": False, **change}
+            )
+            self.assertEqual(self.client.get(f"/api/vacancies/{self.vacancy.id}/").status_code, 404, change)
+
+    def test_company_not_approved_hides_vacancy(self):
+        Company.objects.filter(pk=self.company.pk).update(moderation_status="pending")
+        self.assertEqual(self.client.get(f"/api/vacancies/{self.vacancy.id}/").status_code, 404)

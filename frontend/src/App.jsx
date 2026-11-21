@@ -17,6 +17,7 @@ import SeekerPage from "./pages/SeekerPage.jsx";
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import ModerationPage from "./pages/ModerationPage.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
+import VacancyPage from "./pages/VacancyPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -57,6 +58,7 @@ const ROUTES = [
   ["/forgot-password", ForgotPasswordPage],
   ["/reset-password", ResetPasswordPage],
   ["/vacancies", SearchPage],
+  ["/vacancies/:id", VacancyPage],
   ["/company", CompanyPage, "employer"],
   ["/vacancies/my", MyVacanciesPage, "employer"],
   ["/resumes", ResumesPage, "seeker"],

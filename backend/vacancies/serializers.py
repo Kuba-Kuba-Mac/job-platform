@@ -83,3 +83,15 @@ class PublicVacancySerializer(serializers.ModelSerializer):
         model = Vacancy
         fields = [*FIELDS, "company"]
         read_only_fields = fields
+
+
+class VacancyCompanyDetailSerializer(serializers.ModelSerializer):
+    """S-03: компания на странице вакансии — описание и публичные контакты."""
+
+    class Meta:
+        model = Company
+        fields = ["id", "name", "city", "logo", "description", "website", "contact_email", "phone"]
+
+
+class PublicVacancyDetailSerializer(PublicVacancySerializer):
+    company = VacancyCompanyDetailSerializer(read_only=True)
