@@ -9,7 +9,10 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.models import Role, User
+from accounts.services import block_user
+from applications.models import Application, ApplicationStatus
 from companies.models import Company, ModerationStatus
+from favorites.models import Favorite
 from profiles.models import Project, SeekerProfile
 from resumes.models import Resume, Skill
 from vacancies.models import Vacancy
@@ -19,6 +22,7 @@ DEMO_PASSWORD = "Demo-Pass-2026"
 
 APPROVED = ModerationStatus.APPROVED
 PENDING = ModerationStatus.PENDING
+REJECTED = ModerationStatus.REJECTED
 
 COMPANIES = [
     {
@@ -150,6 +154,17 @@ COMPANIES = [
                 "moderation_status": PENDING,
                 "skills": ["python", "pytorch"],
                 "description": "Вакансия ждёт проверки администратором.",
+            },
+            {
+                "title": "Аналитик 1С",
+                "city": "Нарын",
+                "experience": "1-3",
+                "employment_type": "full",
+                "schedule": "full_day",
+                "moderation_status": REJECTED,
+                "rejection_reason": "Опишите обязанности и требования к кандидату подробнее.",
+                "skills": ["1с"],
+                "description": "Нужен аналитик.",
             },
         ],
     },
@@ -308,6 +323,32 @@ SEEKERS = [
     },
 ]
 
+# A-01: заблокированный пользователь — войти не может, видит сообщение о блокировке
+BLOCKED = {
+    "email": "seeker4@demo.kg",
+    "full_name": "Заблокированный Демо",
+    "reason": "Массовая рассылка рекламы работодателям (демо)",
+}
+
+# S-04/S-05/E-04: отклики во всех статусах — (соискатель, вакансия, статус, сопроводительное письмо)
+APPLICATIONS = [
+    ("seeker@demo.kg", "Стажёр Python-разработчик", ApplicationStatus.NEW, "Изучаю Django, хочу расти в команде."),
+    ("seeker@demo.kg", "Middle Backend-разработчик (Django)", ApplicationStatus.REJECTED, ""),
+    ("seeker@demo.kg", "QA-инженер (стажировка)", ApplicationStatus.VIEWED, "Готов начать с тестирования."),
+    ("seeker2@demo.kg", "Junior Frontend-разработчик (React)", ApplicationStatus.INVITED, "Мой лендинг — в профиле."),
+    ("seeker2@demo.kg", "UI/UX-дизайнер", ApplicationStatus.VIEWED, ""),
+    ("seeker3@demo.kg", "Стажёр-аналитик данных", ApplicationStatus.INVITED, "Сделал учебный анализ цен на жильё."),
+    ("seeker3@demo.kg", "Junior Data Analyst", ApplicationStatus.NEW, ""),
+]
+
+# S-06: избранное
+FAVORITES = [
+    ("seeker@demo.kg", "DevOps-инженер"),
+    ("seeker@demo.kg", "Data Engineer"),
+    ("seeker2@demo.kg", "Мобильный разработчик (Flutter)"),
+    ("seeker3@demo.kg", "Junior Data Analyst"),
+]
+
 
 class Command(BaseCommand):
     help = "Заполняет базу вымышленными демо-данными (все email на @demo.kg)."
@@ -328,13 +369,31 @@ class Command(BaseCommand):
             self.company(data)
         for data in SEEKERS:
             self.seeker(data)
+        self.applications_and_favorites()
+        blocked = self.user(BLOCKED["email"], Role.SEEKER, full_name=BLOCKED["full_name"])
+        if blocked.is_active:
+            block_user(blocked, BLOCKED["reason"])
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Демо-данные готовы: {Vacancy.objects.published().count()} опубликованных вакансий. "
-                f"Вход: admin@demo.kg, employer@demo.kg, seeker@demo.kg — пароль {DEMO_PASSWORD}"
+                f"Демо-данные готовы: {Vacancy.objects.published().count()} опубликованных вакансий, "
+                f"{Application.objects.filter(seeker__email__iendswith=DEMO_DOMAIN).count()} откликов. "
+                f"Вход: admin@demo.kg, employer@demo.kg, seeker@demo.kg — пароль {DEMO_PASSWORD}; "
+                f"{BLOCKED['email']} заблокирован"
             )
         )
+
+    def applications_and_favorites(self):
+        demo_vacancies = {v.title: v for v in Vacancy.objects.filter(company__owner__email__iendswith=DEMO_DOMAIN)}
+        for email, title, status, letter in APPLICATIONS:
+            seeker = User.objects.get(email=email)
+            Application.objects.get_or_create(
+                seeker=seeker,
+                vacancy=demo_vacancies[title],
+                defaults={"resume": seeker.resumes.first(), "status": status, "cover_letter": letter},
+            )
+        for email, title in FAVORITES:
+            Favorite.objects.get_or_create(user=User.objects.get(email=email), vacancy=demo_vacancies[title])
 
     def user(self, email, role, **fields):
         user, created = User.objects.get_or_create(

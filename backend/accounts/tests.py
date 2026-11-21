@@ -14,7 +14,9 @@ from rest_framework.response import Response
 from rest_framework.test import APITestCase
 from rest_framework.views import APIView
 
+from applications.models import Application, ApplicationStatus
 from companies.models import Company
+from favorites.models import Favorite
 from profiles.models import Project, SeekerProfile
 from resumes.models import Resume
 from vacancies.models import Vacancy
@@ -437,6 +439,8 @@ class SeedDemoTests(APITestCase):
             "vacancies": Vacancy.objects.count(),
             "resumes": Resume.objects.count(),
             "projects": Project.objects.count(),
+            "applications": Application.objects.count(),
+            "favorites": Favorite.objects.count(),
         }
 
     def test_seed_is_idempotent(self):
@@ -447,9 +451,15 @@ class SeedDemoTests(APITestCase):
 
         self.assertGreaterEqual(Vacancy.objects.published().count(), 10)
         self.assertEqual(Vacancy.objects.filter(moderation_status="pending").count(), 1)
+        self.assertEqual(Vacancy.objects.filter(moderation_status="rejected").exclude(rejection_reason="").count(), 1)
         self.assertEqual(Vacancy.objects.filter(is_archived=True).count(), 1)
         self.assertEqual(Company.objects.filter(moderation_status="pending").count(), 1)
         self.assertEqual(SeekerProfile.objects.count(), 3)
+        self.assertEqual(set(Application.objects.values_list("status", flat=True)), set(ApplicationStatus.values))
+        self.assertGreater(Favorite.objects.count(), 0)
+        self.assertEqual(
+            list(User.objects.filter(is_active=False).values_list("email", flat=True)), ["seeker4@demo.kg"]
+        )
         self.assertTrue(all(u.email.endswith("@demo.kg") and u.email_verified for u in User.objects.all()))
 
     def test_demo_accounts_can_login(self):
@@ -458,6 +468,8 @@ class SeedDemoTests(APITestCase):
             resp = self.client.post("/api/auth/login/", {"email": email, "password": DEMO_PASSWORD})
             self.assertEqual(resp.status_code, status.HTTP_200_OK, email)
             self.assertEqual(resp.data["user"]["role"], role)
+        resp = self.client.post("/api/auth/login/", {"email": "seeker4@demo.kg", "password": DEMO_PASSWORD})
+        self.assertEqual(resp.data["code"], "user_blocked")
 
     def test_reset_removes_only_demo_data(self):
         real = User.objects.create_user("real@x.kg", STRONG_PASSWORD)
