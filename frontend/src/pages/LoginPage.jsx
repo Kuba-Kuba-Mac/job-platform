@@ -15,7 +15,8 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const user = await login(form.email, form.password);
-      navigate(user.role === "employer" ? "/company" : "/resumes");
+      // F-06: каждая роль попадает в свой кабинет
+      navigate({ seeker: "/resumes", employer: "/company" }[user.role] ?? "/");
     } catch (err) {
       setError(err.status === 401 ? "Неверный email или пароль" : err.message);
     } finally {
@@ -35,6 +36,9 @@ export default function LoginPage() {
         <input type="password" required autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
       </label>
       {error && <p className="error">{error}</p>}
+      <Link to="/forgot-password" className="small">
+        Забыли пароль?
+      </Link>
       <button className="btn" disabled={busy}>
         {busy ? "Входим…" : "Войти"}
       </button>

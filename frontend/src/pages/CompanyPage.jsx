@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { useCallback, useEffect, useState } from "react";
+import { api, errorText } from "../api.js";
+import { ErrorState, Loading } from "../components/States.jsx";
 
 const EMPTY = { name: "", description: "", city: "", phone: "", contact_email: "", website: "" };
 const STATUS = { pending: "На модерации", approved: "Одобрена", rejected: "Отклонена" };
@@ -10,20 +11,26 @@ export default function CompanyPage() {
   const [form, setForm] = useState(EMPTY);
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError("");
     api("/companies/me/")
       .then((data) => {
         setCompany(data);
         setForm(pick(data));
       })
       .catch((err) => {
-        if (err.status !== 404) setError(err.message);
+        // 404 — профиля ещё нет, показываем форму создания
+        if (err.status !== 404) setLoadError(errorText(err));
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(load, [load]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -43,7 +50,8 @@ export default function CompanyPage() {
     }
   }
 
-  if (loading) return <p className="muted">Загрузка…</p>;
+  if (loading) return <Loading />;
+  if (loadError) return <ErrorState message={loadError} onRetry={load} />;
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
   return (

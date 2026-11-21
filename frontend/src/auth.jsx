@@ -32,6 +32,13 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  // F-04/F-05: перечитать пользователя после подтверждения email или правки профиля
+  const refreshUser = useCallback(async () => {
+    const data = await api("/auth/me/");
+    setUser(data);
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     const tokens = getTokens();
     try {
@@ -43,7 +50,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, setUser, refreshUser, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

@@ -24,10 +24,18 @@ export class ApiError extends Error {
 
 function formatErrors(data) {
   if (!data || typeof data !== "object") return "";
-  if (data.detail) return data.detail;
+  if (data.detail) return [].concat(data.detail).join(" ");
   return Object.entries(data)
     .map(([field, msgs]) => `${field}: ${[].concat(msgs).join(" ")}`)
     .join("\n");
+}
+
+// Текст ошибки для формы: сообщения сервера уже на русском и понятны без имени поля
+export function errorText(err) {
+  if (!(err instanceof ApiError)) return "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.";
+  if (err.status >= 500) return "На сервере произошла ошибка. Попробуйте позже.";
+  if (!err.data || typeof err.data !== "object" || err.data.detail) return err.message;
+  return Object.values(err.data).flat().join("\n");
 }
 
 async function refreshAccess() {
@@ -66,7 +74,12 @@ export async function api(path, { method = "GET", body, retry = true } = {}) {
   }
 
   const text = await resp.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // не JSON (например, страница ошибки прокси) — покажем общий текст ошибки
+  }
   if (!resp.ok) throw new ApiError(resp.status, data);
   return data;
 }

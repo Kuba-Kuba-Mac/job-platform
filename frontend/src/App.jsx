@@ -5,13 +5,23 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import CompanyPage from "./pages/CompanyPage.jsx";
 import ResumesPage from "./pages/ResumesPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
+import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import MyVacanciesPage from "./pages/MyVacanciesPage.jsx";
+import PortfolioPage from "./pages/PortfolioPage.jsx";
+import SeekerPage from "./pages/SeekerPage.jsx";
+import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
+import { Loading } from "./components/States.jsx";
 
 // F-06 на клиенте: прячем страницы чужой роли. Настоящая проверка — на сервере.
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth();
-  if (loading) return <p className="muted">Загрузка…</p>;
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <p className="error">Эта страница недоступна для вашей роли.</p>;
+  if (role && user.role !== role) return <p className="error">Недоступно для вашей роли.</p>;
   return children;
 }
 
@@ -25,11 +35,28 @@ function Header() {
         Стажировки<span>KG</span>
       </Link>
       <nav>
-        {user?.role === "seeker" && <Link to="/resumes">Мои резюме</Link>}
-        {user?.role === "employer" && <Link to="/company">Моя компания</Link>}
+        {user?.role === "seeker" && (
+          <>
+            <Link to="/resumes">Мои резюме</Link>
+            <Link to="/portfolio">Проекты и GitHub</Link>
+          </>
+        )}
+        {user?.role === "employer" && (
+          <>
+            <Link to="/company">Моя компания</Link>
+            <Link to="/vacancies/my">Мои вакансии</Link>
+          </>
+        )}
+        {user?.role === "admin" && (
+          <a href="/admin/" target="_blank" rel="noreferrer">
+            Админка
+          </a>
+        )}
         {user ? (
           <>
-            <span className="muted small">{user.email}</span>
+            <Link to="/profile" className="small user-link" title="Мой профиль">
+              {user.full_name || user.email}
+            </Link>
             <button
               className="link"
               onClick={async () => {
@@ -57,11 +84,15 @@ export default function App() {
   return (
     <>
       <Header />
+      <VerifyEmailBanner />
       <main className="container">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route
             path="/company"
             element={
@@ -75,6 +106,46 @@ export default function App() {
             element={
               <RequireRole role="seeker">
                 <ResumesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/vacancies/my"
+            element={
+              <RequireRole role="employer">
+                <MyVacanciesPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/portfolio"
+            element={
+              <RequireRole role="seeker">
+                <PortfolioPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/seekers/:id"
+            element={
+              <RequireRole>
+                <SeekerPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RequireRole>
+                <ProfilePage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/settings/password"
+            element={
+              <RequireRole>
+                <ChangePasswordPage />
               </RequireRole>
             }
           />

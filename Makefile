@@ -1,4 +1,4 @@
-.PHONY: up down logs test lint superuser migrations shell
+.PHONY: up down logs test lint superuser migrations shell seed reseed secret
 
 up:            ## Запустить всё (db + backend + frontend)
 	docker compose up --build
@@ -23,3 +23,12 @@ migrations:    ## Создать миграции после изменения 
 
 shell:
 	docker compose run --rm backend python manage.py shell
+
+seed:          ## Добавить вымышленные демо-данные (@demo.kg), без дублей
+	docker compose run --rm backend python manage.py seed_demo
+
+reseed:        ## Удалить демо-данные @demo.kg и создать заново
+	docker compose run --rm backend python manage.py seed_demo --reset
+
+secret:        ## Сгенерировать DJANGO_SECRET_KEY для .env
+	@python3 -c "import secrets; print(secrets.token_urlsafe(50))"

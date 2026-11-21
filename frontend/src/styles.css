@@ -72,9 +72,61 @@ input[type="radio"] { width: auto; }
 .badge.approved { background: #e9f5f0; color: var(--accent); }
 .badge.rejected { background: #fde8e6; color: var(--danger); }
 
+/* F-03: индикатор надёжности пароля */
+.strength { display: grid; gap: 0.5rem; }
+.strength-bar { display: flex; gap: 4px; flex: 1; max-width: 160px; }
+.strength-bar span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.strength-bar.weak .on { background: var(--danger); }
+.strength-bar.medium .on { background: var(--warn); }
+.strength-bar.strong .on { background: var(--accent); }
+.strength-label.weak { color: var(--danger); }
+.strength-label.medium { color: var(--warn); }
+.strength-label.strong { color: var(--accent); }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
+.rules li.ok { color: var(--accent); }
+.card > .link { justify-self: start; }
+
 .logo-preview { width: 80px; height: 80px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .error { color: var(--danger); margin: 0; }
 .success { color: var(--accent); margin: 0; }
 .pre { white-space: pre-line; }
+
+/* Состояния страниц: загрузка, ошибка, пусто */
+.state { margin: 1rem 0; }
+.error-state { display: grid; gap: 0.4rem; justify-items: start; }
+.empty { padding: 1.5rem; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+
+/* F-04: плашка «Подтвердите email» */
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem; background: #fff4dc; border-bottom: 1px solid #f0dca8; font-size: 0.9rem;
+}
+.card > a.small { justify-self: start; }
+
+/* F-05: профиль */
+.warn { color: var(--warn); }
+.user-link { color: var(--text); max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-link:hover { color: var(--accent); }
+
+/* E-02: вакансии */
+select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.checkbox { display: flex; align-items: center; gap: 0.5rem; color: var(--text); align-self: end; padding-bottom: 0.6rem; }
+.checkbox input { width: auto; }
+.tabs { display: flex; gap: 0.25rem; margin: 1rem 0 0; border-bottom: 1px solid var(--line); }
+.tab {
+  font: inherit; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 0.5rem 0.9rem; color: var(--muted); cursor: pointer;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tag.accent { background: var(--accent); color: var(--accent-ink); }
+.vacancy-grid { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.vacancy-card { gap: 0.4rem; align-content: start; }
+.vacancy-card p { margin: 0; }
+.salary { font-weight: 600; }
+
+/* S-08: портфолио */
+.stack { display: grid; gap: 1.5rem; }
+.card.inset { background: var(--bg); margin-top: 0.75rem; }
+.card p { margin: 0; }

@@ -32,6 +32,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField("email", unique=True)
     role = models.CharField("роль", max_length=16, choices=Role.choices, default=Role.SEEKER)
+    # F-04: вход без подтверждения не блокируется, но интерфейс просит подтвердить адрес
+    email_verified = models.BooleanField("email подтверждён", default=False)
+    # F-05: данные профиля, которые пользователь редактирует сам
+    full_name = models.CharField("имя и фамилия", max_length=200, blank=True)
+    phone = models.CharField("телефон", max_length=32, blank=True)
+    city = models.CharField("город", max_length=100, blank=True)
     is_active = models.BooleanField("активен", default=True)
     is_staff = models.BooleanField("доступ в админку", default=False)
     created_at = models.DateTimeField("создан", auto_now_add=True)

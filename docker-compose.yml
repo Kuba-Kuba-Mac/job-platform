@@ -21,6 +21,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # Перехватывает все письма платформы (F-04): веб-интерфейс на http://localhost:8025
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
 
   frontend:
     build: ./frontend

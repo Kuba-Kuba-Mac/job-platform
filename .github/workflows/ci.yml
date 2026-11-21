@@ -25,7 +25,7 @@ jobs:
       POSTGRES_DB: jobplatform
       POSTGRES_USER: jobplatform
       POSTGRES_PASSWORD: jobplatform
-      DJANGO_SECRET_KEY: ci-secret
+      DJANGO_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789
       DJANGO_DEBUG: "false"
     defaults:
       run:
