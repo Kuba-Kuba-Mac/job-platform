@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from favorites.serializers import is_published
 from resumes.models import Resume
+from resumes.serializers import ResumeSerializer
 from vacancies.models import Vacancy
 from vacancies.serializers import PublicVacancySerializer
 
@@ -46,4 +47,41 @@ class SeekerApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = ["id", "vacancy", "resume", "cover_letter", "status", "status_changed_at", "created_at"]
+        read_only_fields = fields
+
+
+class ApplicantSerializer(serializers.Serializer):
+    """Кандидат без email и телефона аккаунта — контакты работодатель видит в резюме."""
+
+    id = serializers.IntegerField()
+    full_name = serializers.CharField()
+    city = serializers.CharField()
+
+
+class EmployerApplicationListSerializer(serializers.ModelSerializer):
+    """E-03: отклик в списке у работодателя."""
+
+    seeker = ApplicantSerializer(read_only=True)
+    resume = ResumeBriefSerializer(read_only=True)
+
+    class Meta:
+        model = Application
+        fields = ["id", "seeker", "resume", "cover_letter", "status", "status_changed_at", "created_at"]
+        read_only_fields = fields
+
+
+class EmployerVacancyBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vacancy
+        fields = ["id", "title", "city", "is_archived"]
+
+
+class EmployerApplicationDetailSerializer(EmployerApplicationListSerializer):
+    """E-03: отклик с полным резюме кандидата."""
+
+    resume = ResumeSerializer(read_only=True)
+    vacancy = EmployerVacancyBriefSerializer(read_only=True)
+
+    class Meta(EmployerApplicationListSerializer.Meta):
+        fields = [*EmployerApplicationListSerializer.Meta.fields, "vacancy"]
         read_only_fields = fields

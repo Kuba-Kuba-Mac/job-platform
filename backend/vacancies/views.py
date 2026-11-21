@@ -1,4 +1,5 @@
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -6,7 +7,8 @@ from rest_framework.response import Response
 
 from accounts.models import Role
 from accounts.permissions import IsEmployer
-from applications.models import Application
+from applications.models import Application, ApplicationStatus
+from applications.serializers import EmployerApplicationListSerializer
 from companies.models import Company, ModerationStatus
 from favorites.models import Favorite
 
@@ -44,7 +46,16 @@ class MyVacancyViewSet(
     lookup_value_regex = r"\d+"
 
     def get_queryset(self):
-        qs = Vacancy.objects.filter(company__owner=self.request.user).prefetch_related("skills")
+        qs = (
+            Vacancy.objects.filter(company__owner=self.request.user)
+            .prefetch_related("skills")
+            .annotate(
+                applications_count=Count("applications", distinct=True),
+                new_applications_count=Count(
+                    "applications", filter=Q(applications__status=ApplicationStatus.NEW), distinct=True
+                ),
+            )
+        )
         archived = self.request.query_params.get("archived")
         if self.action == "list" and archived in ("true", "false"):
             qs = qs.filter(is_archived=archived == "true")
@@ -82,6 +93,21 @@ class MyVacancyViewSet(
     def restore(self, request, pk=None):
         """Вернуть вакансию из архива."""
         return self._set_archived(False)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("status", str, enum=ApplicationStatus.values)],
+        responses={200: EmployerApplicationListSerializer(many=True)},
+    )
+    @action(detail=True, methods=["get"], url_path="applications")
+    def applications(self, request, pk=None):
+        """E-03: отклики на свою вакансию (чужая — 404). Сначала новые."""
+        # своя вакансия или 404; без подсчётов и навыков из get_queryset — для списка они не нужны
+        vacancy = get_object_or_404(Vacancy.objects.only("id"), pk=pk, company__owner=request.user)
+        qs = vacancy.applications.select_related("seeker", "resume").order_by("-created_at", "-id")
+        if (status_param := request.query_params.get("status")) in ApplicationStatus.values:
+            qs = qs.filter(status=status_param)
+        page = self.paginate_queryset(qs)
+        return self.get_paginated_response(EmployerApplicationListSerializer(page, many=True).data)
 
 
 SEARCH_PARAMS = [
@@ -126,7 +152,5 @@ class VacancyViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, pagination_class=None)
     def cities(self, request):
         """Города с опубликованными вакансиями — для выпадающего списка фильтра."""
-        rows = (
-            Vacancy.objects.published().values("city").annotate(count=Count("id")).order_by("-count", "city")
-        )
+        rows = Vacancy.objects.published().values("city").annotate(count=Count("id")).order_by("-count", "city")
         return Response(list(rows))

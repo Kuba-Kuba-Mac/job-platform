@@ -165,3 +165,67 @@ class MyApplicationsTests(ApplicationsBase):
         self.assertEqual(self.client.get(APPLY).status_code, status.HTTP_403_FORBIDDEN)
         self.client.force_authenticate(None)
         self.assertEqual(self.client.get(APPLY).status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class EmployerApplicationsTests(ApplicationsBase):
+    """E-03"""
+
+    def setUp(self):
+        super().setUp()
+        self.application = Application.objects.create(
+            vacancy=self.vacancy, seeker=self.seeker, resume=self.resume, cover_letter="Хочу к вам"
+        )
+        self.rival = User.objects.create_user("rival@corp.kg", PWD, role=Role.EMPLOYER)
+        rival_company = Company.objects.create(owner=self.rival, name="Чужая", moderation_status="approved")
+        self.rival_vacancy = self.make_vacancy("Чужая вакансия", company=rival_company)
+        self.foreign_application = Application.objects.create(
+            vacancy=self.rival_vacancy, seeker=self.other, resume=self.other_resume
+        )
+        self.client.force_authenticate(self.employer)
+
+    def test_list_for_own_vacancy(self):
+        resp = self.client.get(f"/api/vacancies/my/{self.vacancy.id}/applications/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["count"], 1)
+        item = resp.data["results"][0]
+        self.assertEqual(item["seeker"]["full_name"], "Айбек")
+        self.assertEqual(item["resume"]["title"], "Junior Python")
+        self.assertNotIn("email", item["seeker"])
+        self.assertEqual(
+            self.client.get(f"/api/vacancies/my/{self.vacancy.id}/applications/?status=invited").data["count"], 0
+        )
+
+    def test_counters_in_my_vacancies(self):
+        Application.objects.create(vacancy=self.vacancy, seeker=self.other, status=ApplicationStatus.VIEWED)
+        item = self.client.get(f"/api/vacancies/my/{self.vacancy.id}/").data
+        self.assertEqual((item["applications_count"], item["new_applications_count"]), (2, 1))
+
+    def test_open_application_with_full_resume(self):
+        resp = self.client.get(f"/api/employer/applications/{self.application.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["resume"]["full_name"], "Айбек Тестов")
+        self.assertEqual(resp.data["cover_letter"], "Хочу к вам")
+        self.assertEqual(resp.data["vacancy"]["title"], "Python")
+
+    def test_foreign_vacancy_and_application_not_accessible(self):
+        resp = self.client.get(f"/api/vacancies/my/{self.rival_vacancy.id}/applications/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        resp = self.client.get(f"/api/employer/applications/{self.foreign_application.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_other_roles(self):
+        for user in (self.seeker, User.objects.create_user("a@x.kg", PWD, role=Role.ADMIN)):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(f"/api/vacancies/my/{self.vacancy.id}/applications/").status_code, 403)
+            self.assertEqual(self.client.get(f"/api/employer/applications/{self.application.id}/").status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.get(f"/api/employer/applications/{self.application.id}/").status_code, 401)
+
+    def test_list_query_count(self):
+        for i in range(5):
+            u = User.objects.create_user(f"c{i}@x.kg", PWD, role=Role.SEEKER)
+            Application.objects.create(
+                vacancy=self.vacancy, seeker=u, resume=Resume.objects.create(seeker=u, title="R", full_name="X")
+            )
+        with self.assertNumQueries(3):  # вакансия (проверка владельца), count, страница
+            self.client.get(f"/api/vacancies/my/{self.vacancy.id}/applications/")

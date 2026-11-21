@@ -36,10 +36,27 @@ class MyVacancySerializer(serializers.ModelSerializer):
         child=serializers.CharField(max_length=64), required=False, write_only=True, max_length=MAX_SKILLS
     )
 
+    # E-03: счётчики откликов приходят аннотацией из MyVacancyViewSet
+    applications_count = serializers.SerializerMethodField()
+    new_applications_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Vacancy
-        fields = [*FIELDS, "moderation_status", "rejection_reason", "is_archived"]
+        fields = [
+            *FIELDS,
+            "moderation_status",
+            "rejection_reason",
+            "is_archived",
+            "applications_count",
+            "new_applications_count",
+        ]
         read_only_fields = ["id", "moderation_status", "rejection_reason", "is_archived", "created_at", "updated_at"]
+
+    def get_applications_count(self, obj) -> int:
+        return getattr(obj, "applications_count", 0)
+
+    def get_new_applications_count(self, obj) -> int:
+        return getattr(obj, "new_applications_count", 0)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

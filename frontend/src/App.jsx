@@ -20,6 +20,8 @@ import SearchPage from "./pages/SearchPage.jsx";
 import VacancyPage from "./pages/VacancyPage.jsx";
 import FavoritesPage from "./pages/FavoritesPage.jsx";
 import MyApplicationsPage from "./pages/MyApplicationsPage.jsx";
+import VacancyApplicationsPage from "./pages/VacancyApplicationsPage.jsx";
+import ApplicationDetailPage from "./pages/ApplicationDetailPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -65,6 +67,8 @@ const ROUTES = [
   ["/vacancies/:id", VacancyPage],
   ["/company", CompanyPage, "employer"],
   ["/vacancies/my", MyVacanciesPage, "employer"],
+  ["/vacancies/my/:id/applications", VacancyApplicationsPage, "employer"],
+  ["/employer/applications/:id", ApplicationDetailPage, "employer"],
   ["/resumes", ResumesPage, "seeker"],
   ["/favorites", FavoritesPage, "seeker"],
   ["/applications", MyApplicationsPage, "seeker"],

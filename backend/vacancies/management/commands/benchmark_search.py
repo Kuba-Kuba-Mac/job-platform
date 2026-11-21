@@ -63,9 +63,7 @@ class Command(BaseCommand):
 
     def generate(self, count):
         rnd = random.Random(42)
-        owners = [
-            User.objects.create_user(f"bench{i}@bench.demo.kg", None, role=Role.EMPLOYER) for i in range(10)
-        ]
+        owners = [User.objects.create_user(f"bench{i}@bench.demo.kg", None, role=Role.EMPLOYER) for i in range(10)]
         companies = [
             Company.objects.create(owner=o, name=f"Бенч-компания {i}", moderation_status=ModerationStatus.APPROVED)
             for i, o in enumerate(owners)

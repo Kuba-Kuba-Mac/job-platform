@@ -34,10 +34,7 @@ def filter_vacancies(qs, params):
     if q := " ".join(params.get("q", "").split()):
         skill_match = Vacancy.skills.through.objects.filter(vacancy_id=OuterRef("pk"), skill__name=Skill.normalize(q))
         qs = qs.filter(
-            Q(title__icontains=q)
-            | Q(description__icontains=q)
-            | Q(company__name__icontains=q)
-            | Q(Exists(skill_match))
+            Q(title__icontains=q) | Q(description__icontains=q) | Q(company__name__icontains=q) | Q(Exists(skill_match))
         )
 
     if city := params.get("city", "").strip():

@@ -243,6 +243,10 @@ export default function MyVacanciesPage() {
               ))}
             </div>
             <div className="row">
+              <Link to={`/vacancies/my/${v.id}/applications`}>
+                Отклики: {v.applications_count}
+                {v.new_applications_count > 0 && <span className="count-new">+{v.new_applications_count} новых</span>}
+              </Link>
               <button className="link" onClick={() => startEdit(v)}>
                 Изменить
               </button>

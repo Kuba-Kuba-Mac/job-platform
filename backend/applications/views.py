@@ -4,10 +4,10 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from accounts.permissions import IsSeeker
+from accounts.permissions import IsEmployer, IsSeeker
 
 from .models import Application, ApplicationStatus
-from .serializers import ApplicationCreateSerializer, SeekerApplicationSerializer
+from .serializers import ApplicationCreateSerializer, EmployerApplicationDetailSerializer, SeekerApplicationSerializer
 from .services import create_application
 
 
@@ -57,3 +57,22 @@ class SeekerApplicationViewSet(
             raise ValidationError({"vacancy_id": ["Вы уже откликнулись на эту вакансию."]}) from None
         application = self.get_queryset().get(pk=application.pk)
         return Response(SeekerApplicationSerializer(application).data, status=status.HTTP_201_CREATED)
+
+
+class EmployerApplicationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """E-03: отклик на вакансию работодателя с полным резюме кандидата.
+
+    Видны только отклики на свои вакансии; чужие — 404.
+    Список откликов вакансии: GET /api/vacancies/my/{id}/applications/
+    """
+
+    serializer_class = EmployerApplicationDetailSerializer
+    permission_classes = [IsEmployer]
+    lookup_value_regex = r"\d+"
+
+    def get_queryset(self):
+        return (
+            Application.objects.filter(vacancy__company__owner=self.request.user)
+            .select_related("seeker", "vacancy", "resume")
+            .prefetch_related("resume__skills")
+        )
