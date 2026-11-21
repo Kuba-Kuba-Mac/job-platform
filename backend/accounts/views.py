@@ -4,7 +4,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -23,14 +22,9 @@ from .serializers import (
     UserSerializer,
     VerifyEmailSerializer,
 )
+from .services import revoke_refresh_tokens
 
 PASSWORD_RESET_SENT = "Если такой email зарегистрирован, мы отправили на него ссылку для восстановления пароля."
-
-
-def revoke_refresh_tokens(user):
-    """Отзывает все refresh-токены пользователя — выход на всех устройствах."""
-    for token in OutstandingToken.objects.filter(user=user):
-        BlacklistedToken.objects.get_or_create(token=token)
 
 
 class RegisterView(generics.CreateAPIView):

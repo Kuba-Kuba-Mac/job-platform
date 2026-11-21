@@ -3,6 +3,7 @@ import re
 from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .emails import send_verification_email
@@ -10,6 +11,7 @@ from .models import Role, User
 from .tokens import email_verification_token, password_reset_token, user_from_uid
 
 INVALID_LINK = "Ссылка недействительна или устарела. Запросите новое письмо."
+BLOCKED_MESSAGE = "Ваш аккаунт заблокирован администратором. Если это ошибка, напишите в поддержку платформы."
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -87,7 +89,15 @@ class LoginSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        try:
+            data = super().validate(attrs)
+        except AuthenticationFailed:
+            # A-01: заблокированному говорим об этом прямо, но только если пароль верный —
+            # иначе по ответу можно было бы узнать, какие адреса заблокированы
+            user = User.objects.filter(email__iexact=attrs.get(self.username_field, "")).first()
+            if user and not user.is_active and user.check_password(attrs.get("password", "")):
+                raise AuthenticationFailed({"detail": BLOCKED_MESSAGE, "code": "user_blocked"}) from None
+            raise
         data["user"] = UserSerializer(self.user).data
         return data
 

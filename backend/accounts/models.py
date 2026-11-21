@@ -38,7 +38,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField("имя и фамилия", max_length=200, blank=True)
     phone = models.CharField("телефон", max_length=32, blank=True)
     city = models.CharField("город", max_length=100, blank=True)
+    # A-01: заблокированный пользователь — is_active=False; причина видна администраторам
     is_active = models.BooleanField("активен", default=True)
+    blocked_at = models.DateTimeField("заблокирован", null=True, blank=True)
+    block_reason = models.CharField("причина блокировки", max_length=500, blank=True)
     is_staff = models.BooleanField("доступ в админку", default=False)
     created_at = models.DateTimeField("создан", auto_now_add=True)
 

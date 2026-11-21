@@ -18,6 +18,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Если сервер отозвал сессию, интерфейс сразу переходит в режим гостя
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener("auth:expired", onExpired);
+    return () => window.removeEventListener("auth:expired", onExpired);
+  }, []);
+
   const login = useCallback(async (email, password) => {
     const data = await api("/auth/login/", { method: "POST", body: { email, password } });
     setTokens({ access: data.access, refresh: data.refresh });

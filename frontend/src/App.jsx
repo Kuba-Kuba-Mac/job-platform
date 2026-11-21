@@ -1,4 +1,5 @@
-import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
@@ -13,43 +14,81 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import MyVacanciesPage from "./pages/MyVacanciesPage.jsx";
 import PortfolioPage from "./pages/PortfolioPage.jsx";
 import SeekerPage from "./pages/SeekerPage.jsx";
+import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
 // F-06 на клиенте: прячем страницы чужой роли. Настоящая проверка — на сервере.
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <Loading />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   if (role && user.role !== role) return <p className="error">Недоступно для вашей роли.</p>;
   return children;
 }
 
+// Меню по ролям (F-06). Порядок — по частоте использования.
+const MENU = {
+  guest: [],
+  seeker: [
+    ["/resumes", "Мои резюме"],
+    ["/portfolio", "Проекты и GitHub"],
+  ],
+  employer: [
+    ["/company", "Моя компания"],
+    ["/vacancies/my", "Мои вакансии"],
+  ],
+  admin: [["/admin/users", "Пользователи"]],
+};
+
+// Маршруты: [путь, страница, роль]. role: undefined — для всех, "any" — любой вошедший.
+const ROUTES = [
+  ["/", HomePage],
+  ["/login", LoginPage],
+  ["/register", RegisterPage],
+  ["/verify-email", VerifyEmailPage],
+  ["/forgot-password", ForgotPasswordPage],
+  ["/reset-password", ResetPasswordPage],
+  ["/company", CompanyPage, "employer"],
+  ["/vacancies/my", MyVacanciesPage, "employer"],
+  ["/resumes", ResumesPage, "seeker"],
+  ["/portfolio", PortfolioPage, "seeker"],
+  ["/seekers/:id", SeekerPage, "any"],
+  ["/profile", ProfilePage, "any"],
+  ["/settings/password", ChangePasswordPage, "any"],
+  ["/admin/users", AdminUsersPage, "admin"],
+];
+
 function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const items = MENU[user?.role ?? "guest"] ?? [];
 
   return (
     <header className="header">
       <Link to="/" className="logo">
         Стажировки<span>KG</span>
       </Link>
-      <nav>
-        {user?.role === "seeker" && (
-          <>
-            <Link to="/resumes">Мои резюме</Link>
-            <Link to="/portfolio">Проекты и GitHub</Link>
-          </>
-        )}
-        {user?.role === "employer" && (
-          <>
-            <Link to="/company">Моя компания</Link>
-            <Link to="/vacancies/my">Мои вакансии</Link>
-          </>
-        )}
+      <button
+        type="button"
+        className="menu-toggle"
+        aria-expanded={open}
+        aria-controls="main-nav"
+        onClick={() => setOpen(!open)}
+      >
+        {open ? "Закрыть" : "Меню"}
+      </button>
+      <nav id="main-nav" className={open ? "open" : ""} onClick={() => setOpen(false)}>
+        {items.map(([to, label]) => (
+          <NavLink key={to} to={to} end>
+            {label}
+          </NavLink>
+        ))}
         {user?.role === "admin" && (
           <a href="/admin/" target="_blank" rel="noreferrer">
-            Админка
+            Админка Django
           </a>
         )}
         {user ? (
@@ -87,68 +126,17 @@ export default function App() {
       <VerifyEmailBanner />
       <main className="container">
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route
-            path="/company"
-            element={
-              <RequireRole role="employer">
-                <CompanyPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/resumes"
-            element={
-              <RequireRole role="seeker">
-                <ResumesPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/vacancies/my"
-            element={
-              <RequireRole role="employer">
-                <MyVacanciesPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/portfolio"
-            element={
-              <RequireRole role="seeker">
-                <PortfolioPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/seekers/:id"
-            element={
-              <RequireRole>
-                <SeekerPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <RequireRole>
-                <ProfilePage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/settings/password"
-            element={
-              <RequireRole>
-                <ChangePasswordPage />
-              </RequireRole>
-            }
-          />
+          {ROUTES.map((route) => {
+            const [path, Page, role] = route;
+            const page = <Page />;
+            return (
+              <Route
+                key={path}
+                path={path}
+                element={role ? <RequireRole role={role === "any" ? undefined : role}>{page}</RequireRole> : page}
+              />
+            );
+          })}
           <Route path="*" element={<p>Страница не найдена</p>} />
         </Routes>
       </main>

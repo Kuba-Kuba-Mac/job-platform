@@ -130,3 +130,27 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .stack { display: grid; gap: 1.5rem; }
 .card.inset { background: var(--bg); margin-top: 0.75rem; }
 .card p { margin: 0; }
+
+/* Навигация: активный пункт и меню-гамбургер на смартфоне */
+.header nav a.active { font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.menu-toggle { display: none; font: inherit; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; }
+@media (max-width: 720px) {
+  .menu-toggle { display: inline-block; }
+  .header nav { display: none; width: 100%; flex-direction: column; align-items: stretch; gap: 0; }
+  .header nav.open { display: flex; }
+  .header nav > * { padding: 0.7rem 0; border-top: 1px solid var(--line); text-align: left; }
+  .header nav .btn { text-align: center; margin-top: 0.5rem; }
+  .user-link { max-width: none; }
+  .container { padding: 1rem 0.75rem 2.5rem; }
+  .card { padding: 1rem; }
+}
+
+/* A-01: администрирование, общие фильтры и пагинация */
+.filters-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.filters-inline input { flex: 1 1 200px; width: auto; }
+.filters-inline select { flex: 0 1 180px; width: auto; }
+.card.blocked { border-color: #f1c4c0; background: #fffafa; }
+.pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.35rem; margin: 1.5rem 0 0; }
+.page { font: inherit; min-width: 2.4rem; padding: 0.4rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; color: var(--text); }
+.page.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.page:disabled { opacity: 0.45; cursor: default; }

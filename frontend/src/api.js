@@ -47,7 +47,9 @@ async function refreshAccess() {
     body: JSON.stringify({ refresh: tokens.refresh }),
   });
   if (!resp.ok) {
+    // сессия отозвана (выход на другом устройстве, смена пароля, блокировка — A-01)
     setTokens(null);
+    window.dispatchEvent(new Event("auth:expired"));
     return false;
   }
   const data = await resp.json();
