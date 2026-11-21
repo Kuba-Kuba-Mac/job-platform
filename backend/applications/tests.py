@@ -115,3 +115,53 @@ class ApplyTests(ApplicationsBase):
         self.resume.delete()
         self.assertIsNone(Application.objects.get(pk=aid).resume)
         self.assertEqual(Application.objects.get(pk=aid).status, ApplicationStatus.NEW)
+
+
+class MyApplicationsTests(ApplicationsBase):
+    """S-05"""
+
+    def test_list_own_with_statuses(self):
+        self.apply()
+        second = self.make_vacancy("Django")
+        self.apply(second)
+        Application.objects.filter(vacancy=second).update(status=ApplicationStatus.INVITED)
+        Application.objects.create(vacancy=self.vacancy, seeker=self.other, resume=self.other_resume)
+
+        self.client.force_authenticate(self.seeker)
+        data = self.client.get(APPLY).data
+        self.assertEqual(data["count"], 2)
+        self.assertEqual(
+            {a["vacancy"]["title"]: a["status"] for a in data["results"]}, {"Python": "new", "Django": "invited"}
+        )
+        self.assertEqual(self.client.get(APPLY + "?status=invited").data["count"], 1)
+        self.assertEqual(self.client.get(APPLY + "?status=unknown").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_archived_vacancy_still_listed(self):
+        self.apply()
+        Vacancy.objects.filter(pk=self.vacancy.pk).update(is_archived=True)
+        self.client.force_authenticate(self.seeker)
+        self.assertEqual(self.client.get(APPLY).data["count"], 1)
+
+    def test_foreign_application_not_accessible(self):
+        foreign = Application.objects.create(vacancy=self.vacancy, seeker=self.other, resume=self.other_resume)
+        self.client.force_authenticate(self.seeker)
+        self.assertEqual(self.client.get(f"{APPLY}{foreign.id}/").status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_no_update_or_delete_by_seeker(self):
+        aid = self.apply().data["id"]
+        self.assertEqual(self.client.patch(f"{APPLY}{aid}/", {"status": "invited"}).status_code, 405)
+        self.assertEqual(self.client.delete(f"{APPLY}{aid}/").status_code, 405)
+        self.assertEqual(Application.objects.get(pk=aid).status, ApplicationStatus.NEW)
+
+    def test_list_query_count(self):
+        for i in range(5):
+            self.apply(self.make_vacancy(f"V{i}"))
+        self.client.force_authenticate(self.seeker)
+        with self.assertNumQueries(3):  # count, страница с вакансией/компанией/резюме, навыки
+            self.client.get(APPLY)
+
+    def test_other_roles(self):
+        self.client.force_authenticate(self.employer)
+        self.assertEqual(self.client.get(APPLY).status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.get(APPLY).status_code, status.HTTP_401_UNAUTHORIZED)

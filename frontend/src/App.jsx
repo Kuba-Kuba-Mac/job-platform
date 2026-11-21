@@ -19,6 +19,7 @@ import ModerationPage from "./pages/ModerationPage.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import VacancyPage from "./pages/VacancyPage.jsx";
 import FavoritesPage from "./pages/FavoritesPage.jsx";
+import MyApplicationsPage from "./pages/MyApplicationsPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -37,6 +38,7 @@ const MENU = {
   guest: [["/vacancies", "Вакансии"]],
   seeker: [
     ["/vacancies", "Вакансии"],
+    ["/applications", "Отклики"],
     ["/favorites", "Избранное"],
     ["/resumes", "Мои резюме"],
     ["/portfolio", "Проекты и GitHub"],
@@ -65,6 +67,7 @@ const ROUTES = [
   ["/vacancies/my", MyVacanciesPage, "employer"],
   ["/resumes", ResumesPage, "seeker"],
   ["/favorites", FavoritesPage, "seeker"],
+  ["/applications", MyApplicationsPage, "seeker"],
   ["/portfolio", PortfolioPage, "seeker"],
   ["/seekers/:id", SeekerPage, "any"],
   ["/profile", ProfilePage, "any"],
