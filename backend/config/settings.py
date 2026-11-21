@@ -147,7 +147,15 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Job Platform API",
     "DESCRIPTION": "API платформы поиска работы и стажировок",
-    "VERSION": "0.2.0",
+    "VERSION": "0.3.0",
+    # одинаковые имена полей (role, status) с разными наборами значений — даём перечислениям понятные имена
+    "ENUM_NAME_OVERRIDES": {
+        "RoleEnum": "accounts.models.Role",
+        "RegisterRoleEnum": [("seeker", "Соискатель"), ("employer", "Работодатель")],
+        "ModerationStatusEnum": "companies.models.ModerationStatus",
+        "ApplicationStatusEnum": "applications.models.ApplicationStatus",
+        "NewApplicationStatusEnum": [("viewed", "Просмотрен"), ("invited", "Приглашение"), ("rejected", "Отказ")],
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")

@@ -15,6 +15,8 @@ class ResumeViewSet(viewsets.ModelViewSet):
 
     serializer_class = ResumeSerializer
     permission_classes = [IsSeeker]
+    # только для схемы Swagger (тип id); реальная выборка — свои резюме в get_queryset
+    queryset = Resume.objects.none()
 
     def get_queryset(self):
         return Resume.objects.filter(seeker=self.request.user).prefetch_related("skills")

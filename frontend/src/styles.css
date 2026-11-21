@@ -114,7 +114,8 @@ input[type="radio"] { width: auto; }
 select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .checkbox { display: flex; align-items: center; gap: 0.5rem; color: var(--text); align-self: end; padding-bottom: 0.6rem; }
 .checkbox input { width: auto; }
-.tabs { display: flex; gap: 0.25rem; margin: 1rem 0 0; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 0.25rem; margin: 1rem 0 0; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs .tab { white-space: nowrap; flex-shrink: 0; }
 .tab {
   font: inherit; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
   padding: 0.5rem 0.9rem; color: var(--muted); cursor: pointer;

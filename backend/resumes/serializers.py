@@ -45,7 +45,7 @@ class ResumeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def get_skill_list(self, obj):
+    def get_skill_list(self, obj) -> list[str]:
         return [s.name for s in obj.skills.all()]
 
     def to_representation(self, instance):
