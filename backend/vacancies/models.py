@@ -65,6 +65,17 @@ class Vacancy(models.Model):
         verbose_name = "вакансия"
         verbose_name_plural = "вакансии"
         ordering = ["-created_at"]
+        # S-02: поиск по опубликованным вакансиям — индексы на условия публикации и поля фильтров
+        indexes = [
+            models.Index(fields=["moderation_status", "is_archived", "-created_at"], name="vacancy_published_idx"),
+            models.Index(fields=["city"], name="vacancy_city_idx"),
+            models.Index(fields=["experience"], name="vacancy_experience_idx"),
+            models.Index(fields=["employment_type"], name="vacancy_employment_idx"),
+            models.Index(fields=["schedule"], name="vacancy_schedule_idx"),
+            models.Index(fields=["is_internship"], name="vacancy_internship_idx"),
+            models.Index(fields=["salary_from"], name="vacancy_salary_from_idx"),
+            models.Index(fields=["salary_to"], name="vacancy_salary_to_idx"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(salary_from__isnull=True)

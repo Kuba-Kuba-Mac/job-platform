@@ -1,10 +1,14 @@
 """Тесты E-02: создание, редактирование и архивация вакансий."""
 
+from io import StringIO
+
+from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Role, User
 from companies.models import Company, ModerationStatus
+from resumes.models import Skill
 
 from .models import Vacancy
 
@@ -165,3 +169,98 @@ class PublicVacancyTests(APITestCase):
         self.client.force_authenticate(employer)
         resp = self.client.post("/api/vacancies/", VACANCY, format="json")
         self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class SearchTests(APITestCase):
+    """S-02: поиск по опубликованным вакансиям с фильтрами."""
+
+    def setUp(self):
+        employer = User.objects.create_user("hr@corp.kg", PWD, role=Role.EMPLOYER)
+        self.company = approved_company(employer, "Тоо-Код")
+
+        def make(title, **kw):
+            kw.setdefault("moderation_status", ModerationStatus.APPROVED)
+            kw.setdefault("city", "Бишкек")
+            skills = kw.pop("skills", [])
+            v = Vacancy.objects.create(company=self.company, title=title, description=kw.pop("description", "-"), **kw)
+            v.skills.set(Skill.from_names(skills))
+            return v
+
+        make(
+            "Python стажёр",
+            is_internship=True,
+            salary_from=15000,
+            salary_to=25000,
+            schedule="flexible",
+            skills=["Python"],
+        )
+        make("Frontend", city="Ош", salary_from=60000, experience="1-3", employment_type="part", skills=["react"])
+        make("Аналитик", description="Работа с SQL и Python", salary_to=40000, schedule="remote")
+        make("Дизайнер", experience="3-6", employment_type="project")
+        make("Скрытая", moderation_status=ModerationStatus.PENDING, skills=["python"])
+
+    def titles(self, query=""):
+        resp = self.client.get(f"/api/vacancies/?{query}")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+        return sorted(v["title"] for v in resp.data["results"])
+
+    def test_guest_sees_only_published(self):
+        self.assertEqual(self.titles(), sorted(["Python стажёр", "Аналитик", "Дизайнер", "Frontend"]))
+
+    def test_filters(self):
+        self.assertEqual(self.titles("city=Ош"), ["Frontend"])
+        self.assertEqual(self.titles("internship=true"), ["Python стажёр"])
+        self.assertEqual(self.titles("experience=1-3,3-6"), ["Frontend", "Дизайнер"])
+        self.assertEqual(self.titles("employment_type=project"), ["Дизайнер"])
+        self.assertEqual(self.titles("schedule=remote,flexible"), ["Python стажёр", "Аналитик"])
+        # вилка дотягивается до суммы; без указанной зарплаты — не показываем
+        self.assertEqual(self.titles("salary=30000"), ["Frontend", "Аналитик"])
+        self.assertEqual(self.titles("salary=20000&internship=true"), ["Python стажёр"])
+
+    def test_text_search(self):
+        # должность, описание и навыки; скрытая вакансия с навыком python не находится
+        self.assertEqual(self.titles("q=python"), ["Python стажёр", "Аналитик"])
+        self.assertEqual(self.titles("q=React"), ["Frontend"])
+        self.assertEqual(self.titles("q=Тоо-Код"), sorted(["Python стажёр", "Аналитик", "Дизайнер", "Frontend"]))
+        self.assertEqual(self.titles("q=несуществующее"), [])
+
+    def test_ordering_by_salary(self):
+        resp = self.client.get("/api/vacancies/?ordering=salary")
+        self.assertEqual([v["title"] for v in resp.data["results"]][:3], ["Frontend", "Аналитик", "Python стажёр"])
+
+    def test_invalid_params(self):
+        for query in ["salary=много", "experience=10+", "schedule=night", "ordering=random"]:
+            self.assertEqual(self.client.get(f"/api/vacancies/?{query}").status_code, 400, query)
+
+    def test_pagination(self):
+        resp = self.client.get("/api/vacancies/")
+        self.assertEqual(resp.data["count"], 4)
+        self.assertIsNone(resp.data["next"])
+
+    def test_cities(self):
+        resp = self.client.get("/api/vacancies/cities/")
+        self.assertEqual(resp.data, [{"city": "Бишкек", "count": 3}, {"city": "Ош", "count": 1}])
+
+
+class SearchPerformanceTests(APITestCase):
+    """Нефункциональные требования: нет N+1, команда замера работает."""
+
+    def test_query_count_does_not_grow_with_results(self):
+        employer = User.objects.create_user("hr@corp.kg", PWD, role=Role.EMPLOYER)
+        company = approved_company(employer)
+        skills = Skill.from_names(["python", "sql", "git"])
+        for i in range(25):
+            v = Vacancy.objects.create(
+                company=company, title=f"V{i}", description="-", city="Бишкек", moderation_status="approved"
+            )
+            v.skills.set(skills)
+        # count + страница + навыки — независимо от числа вакансий на странице
+        with self.assertNumQueries(3):
+            resp = self.client.get("/api/vacancies/?q=v&city=Бишкек&ordering=salary")
+        self.assertEqual(len(resp.data["results"]), 20)
+
+    def test_benchmark_command(self):
+        out = StringIO()
+        call_command("benchmark_search", "--count", "60", "--runs", "1", stdout=out)
+        self.assertIn("требование < 2000 мс", out.getvalue())
+        self.assertFalse(User.objects.filter(email__endswith="@bench.demo.kg").exists())

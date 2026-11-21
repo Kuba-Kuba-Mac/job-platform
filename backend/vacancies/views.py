@@ -1,3 +1,4 @@
+from django.db.models import Count
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -6,8 +7,9 @@ from rest_framework.response import Response
 from accounts.permissions import IsEmployer
 from companies.models import Company, ModerationStatus
 
+from .filters import ORDERINGS, filter_vacancies
 from .models import Vacancy
-from .serializers import MyVacancySerializer, PublicVacancySerializer
+from .serializers import CityCountSerializer, MyVacancySerializer, PublicVacancySerializer
 
 
 @extend_schema_view(
@@ -74,10 +76,38 @@ class MyVacancyViewSet(
         return self._set_archived(False)
 
 
+SEARCH_PARAMS = [
+    OpenApiParameter("q", str, description="Текст: должность, описание, компания или навык"),
+    OpenApiParameter("city", str, description="Город (без учёта регистра)"),
+    OpenApiParameter("salary", int, description="Зарплата от, сом: вилка вакансии достигает этой суммы"),
+    OpenApiParameter("experience", str, description="Через запятую: none, 1-3, 3-6, 6+"),
+    OpenApiParameter("employment_type", str, description="Через запятую: full, part, project"),
+    OpenApiParameter("schedule", str, description="Через запятую: full_day, shift, flexible, remote"),
+    OpenApiParameter("internship", bool, description="true — только стажировки"),
+    OpenApiParameter("ordering", str, enum=list(ORDERINGS), description="new (по умолчанию) или salary"),
+    OpenApiParameter("page", int),
+]
+
+
+@extend_schema_view(list=extend_schema(parameters=SEARCH_PARAMS))
 class VacancyViewSet(viewsets.ReadOnlyModelViewSet):
-    """Опубликованные вакансии для всех. Поиск с фильтрами (S-02) — на следующем этапе."""
+    """S-02/S-03: поиск и страница опубликованных вакансий — доступны и гостям."""
 
     serializer_class = PublicVacancySerializer
     permission_classes = [permissions.AllowAny]
     lookup_value_regex = r"\d+"
-    queryset = Vacancy.objects.published().select_related("company").prefetch_related("skills")
+
+    def get_queryset(self):
+        qs = Vacancy.objects.published().select_related("company").prefetch_related("skills")
+        if self.action == "list":
+            qs = filter_vacancies(qs, self.request.query_params)
+        return qs
+
+    @extend_schema(responses={200: CityCountSerializer(many=True)})
+    @action(detail=False, pagination_class=None)
+    def cities(self, request):
+        """Города с опубликованными вакансиями — для выпадающего списка фильтра."""
+        rows = (
+            Vacancy.objects.published().values("city").annotate(count=Count("id")).order_by("-count", "city")
+        )
+        return Response(list(rows))

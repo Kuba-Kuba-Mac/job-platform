@@ -16,6 +16,7 @@ import PortfolioPage from "./pages/PortfolioPage.jsx";
 import SeekerPage from "./pages/SeekerPage.jsx";
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
 import ModerationPage from "./pages/ModerationPage.jsx";
+import SearchPage from "./pages/SearchPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -31,8 +32,9 @@ function RequireRole({ role, children }) {
 
 // Меню по ролям (F-06). Порядок — по частоте использования.
 const MENU = {
-  guest: [],
+  guest: [["/vacancies", "Вакансии"]],
   seeker: [
+    ["/vacancies", "Вакансии"],
     ["/resumes", "Мои резюме"],
     ["/portfolio", "Проекты и GitHub"],
   ],
@@ -54,6 +56,7 @@ const ROUTES = [
   ["/verify-email", VerifyEmailPage],
   ["/forgot-password", ForgotPasswordPage],
   ["/reset-password", ResetPasswordPage],
+  ["/vacancies", SearchPage],
   ["/company", CompanyPage, "employer"],
   ["/vacancies/my", MyVacanciesPage, "employer"],
   ["/resumes", ResumesPage, "seeker"],

@@ -68,6 +68,11 @@ class MyVacancySerializer(serializers.ModelSerializer):
         return instance
 
 
+class CityCountSerializer(serializers.Serializer):
+    city = serializers.CharField()
+    count = serializers.IntegerField()
+
+
 class PublicVacancySerializer(serializers.ModelSerializer):
     """Опубликованная вакансия для всех посетителей."""
 

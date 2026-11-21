@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, errorText } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { Empty, ErrorState, Loading } from "../components/States.jsx";
-import { SCHEDULE, formatSalary } from "../labels.js";
+import VacancyCard from "../components/VacancyCard.jsx";
 
 const FRESH_COUNT = 6;
 
-// E-02: последние опубликованные вакансии. Поиск с фильтрами (S-02) — на следующем этапе.
+// E-02: последние опубликованные вакансии; полный поиск — на странице /vacancies (S-02)
 function FreshVacancies() {
   const [vacancies, setVacancies] = useState(null);
   const [error, setError] = useState("");
@@ -23,23 +23,16 @@ function FreshVacancies() {
 
   return (
     <section>
-      <h2>Свежие вакансии</h2>
+      <div className="row between">
+        <h2>Свежие вакансии</h2>
+        <Link to="/vacancies">Все вакансии и фильтры →</Link>
+      </div>
       {error && <ErrorState message={error} onRetry={load} />}
       {!error && !vacancies && <Loading />}
       {vacancies?.length === 0 && <Empty>Пока нет опубликованных вакансий.</Empty>}
       <ul className="vacancy-grid">
         {vacancies?.map((v) => (
-          <li key={v.id} className="card vacancy-card">
-            <h3>{v.title}</h3>
-            <p className="muted small">
-              {v.company.name} · {v.city}
-            </p>
-            <p className="salary">{formatSalary(v.salary_from, v.salary_to)}</p>
-            <div className="tags">
-              {v.is_internship && <span className="tag accent">Стажировка</span>}
-              <span className="tag">{SCHEDULE[v.schedule]}</span>
-            </div>
-          </li>
+          <VacancyCard key={v.id} vacancy={v} />
         ))}
       </ul>
     </section>
@@ -48,14 +41,29 @@ function FreshVacancies() {
 
 export default function HomePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   return (
     <>
       <section className="hero">
         <h1>Стажировки и первая работа в Кыргызстане</h1>
         <p className="muted">
-          Студенты и выпускники создают резюме и портфолио, компании публикуют вакансии. Поиск с фильтрами появится на
-          следующем этапе.
+          Студенты и выпускники создают резюме и портфолио и откликаются на вакансии, компании публикуют вакансии и
+          приглашают кандидатов.
         </p>
+        {user?.role !== "employer" && (
+          <form
+            className="search-bar"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = new FormData(e.currentTarget).get("q").trim();
+              navigate(q ? `/vacancies?q=${encodeURIComponent(q)}` : "/vacancies");
+            }}
+          >
+            <input name="q" type="search" placeholder="Должность, навык или компания" aria-label="Поиск вакансий" />
+            <button className="btn">Найти вакансии</button>
+          </form>
+        )}
         {!user && (
           <div className="row">
             <Link to="/register" className="btn">
@@ -63,11 +71,6 @@ export default function HomePage() {
             </Link>
             <Link to="/login">Уже есть аккаунт</Link>
           </div>
-        )}
-        {user?.role === "seeker" && (
-          <Link to="/resumes" className="btn">
-            Перейти к резюме
-          </Link>
         )}
         {user?.role === "employer" && (
           <Link to="/vacancies/my" className="btn">
