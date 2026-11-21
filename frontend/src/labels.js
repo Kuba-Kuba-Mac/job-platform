@@ -23,6 +23,10 @@ export const MODERATION = { pending: "На модерации", approved: "Од�
 
 export const ROLE = { seeker: "Соискатель", employer: "Работодатель", admin: "Администратор" };
 
+// Статусы отклика: соискатель видит «Отправлен» (S-05), работодатель — «Новый» (E-04)
+export const SEEKER_STATUS = { new: "Отправлен", viewed: "Просмотрен", invited: "Приглашение", rejected: "Отказ" };
+export const EMPLOYER_STATUS = { new: "Новый", viewed: "Просмотрен", invited: "Приглашение", rejected: "Отказ" };
+
 const money = (n) => n.toLocaleString("ru-RU");
 
 export function formatSalary(from, to) {

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from accounts.models import Role
 from accounts.permissions import IsEmployer
+from applications.models import Application
 from companies.models import Company, ModerationStatus
 from favorites.models import Favorite
 
@@ -112,7 +113,10 @@ class VacancyViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         if user.is_authenticated and user.role == Role.SEEKER:
             qs = qs.annotate(
-                favorite_id=Subquery(Favorite.objects.filter(user=user, vacancy=OuterRef("pk")).values("id")[:1])
+                favorite_id=Subquery(Favorite.objects.filter(user=user, vacancy=OuterRef("pk")).values("id")[:1]),
+                application_status=Subquery(
+                    Application.objects.filter(seeker=user, vacancy=OuterRef("pk")).values("status")[:1]
+                ),
             )
         if self.action == "list":
             qs = filter_vacancies(qs, self.request.query_params)

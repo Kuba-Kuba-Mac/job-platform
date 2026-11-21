@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api, errorText } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import ApplyPanel from "../components/ApplyPanel.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
 import { ErrorState, Loading } from "../components/States.jsx";
 import { EMPLOYMENT_TYPE, EXPERIENCE, SCHEDULE, formatSalary } from "../labels.js";
@@ -70,6 +71,9 @@ export default function VacancyPage() {
             </Link>
             <span className="muted small">Нужно войти как соискатель</span>
           </div>
+        )}
+        {user?.role === "seeker" && (
+          <ApplyPanel vacancy={v} onApplied={(status) => setVacancy({ ...v, application_status: status })} />
         )}
         <p className="muted small">Опубликована {new Date(v.created_at).toLocaleDateString("ru-RU")}</p>
       </section>
