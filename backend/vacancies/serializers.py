@@ -38,8 +38,8 @@ class MyVacancySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vacancy
-        fields = [*FIELDS, "moderation_status", "is_archived"]
-        read_only_fields = ["id", "moderation_status", "is_archived", "created_at", "updated_at"]
+        fields = [*FIELDS, "moderation_status", "rejection_reason", "is_archived"]
+        read_only_fields = ["id", "moderation_status", "rejection_reason", "is_archived", "created_at", "updated_at"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

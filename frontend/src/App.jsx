@@ -15,6 +15,7 @@ import MyVacanciesPage from "./pages/MyVacanciesPage.jsx";
 import PortfolioPage from "./pages/PortfolioPage.jsx";
 import SeekerPage from "./pages/SeekerPage.jsx";
 import AdminUsersPage from "./pages/AdminUsersPage.jsx";
+import ModerationPage from "./pages/ModerationPage.jsx";
 import VerifyEmailBanner from "./components/VerifyEmailBanner.jsx";
 import { Loading } from "./components/States.jsx";
 
@@ -39,7 +40,10 @@ const MENU = {
     ["/company", "Моя компания"],
     ["/vacancies/my", "Мои вакансии"],
   ],
-  admin: [["/admin/users", "Пользователи"]],
+  admin: [
+    ["/admin/moderation", "Модерация"],
+    ["/admin/users", "Пользователи"],
+  ],
 };
 
 // Маршруты: [путь, страница, роль]. role: undefined — для всех, "any" — любой вошедший.
@@ -58,6 +62,7 @@ const ROUTES = [
   ["/profile", ProfilePage, "any"],
   ["/settings/password", ChangePasswordPage, "any"],
   ["/admin/users", AdminUsersPage, "admin"],
+  ["/admin/moderation", ModerationPage, "admin"],
 ];
 
 function Header() {

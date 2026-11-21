@@ -60,5 +60,6 @@ class MyCompanyView(APIView):
             return Response({"detail": "Профиль компании ещё не создан."}, status=status.HTTP_404_NOT_FOUND)
         serializer = CompanySerializer(company, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(moderation_status=ModerationStatus.PENDING)
+        # после правки — снова на модерацию, прошлая причина отклонения больше не актуальна
+        serializer.save(moderation_status=ModerationStatus.PENDING, rejection_reason="")
         return Response(serializer.data)

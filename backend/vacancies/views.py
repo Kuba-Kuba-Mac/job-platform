@@ -53,7 +53,7 @@ class MyVacancyViewSet(
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
-        serializer.save(moderation_status=ModerationStatus.PENDING)
+        serializer.save(moderation_status=ModerationStatus.PENDING, rejection_reason="")
 
     def _set_archived(self, value):
         vacancy = self.get_object()

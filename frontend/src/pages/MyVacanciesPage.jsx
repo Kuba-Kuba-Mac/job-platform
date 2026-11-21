@@ -231,6 +231,9 @@ export default function MyVacanciesPage() {
               </div>
               <span className={`badge ${v.moderation_status}`}>{MODERATION[v.moderation_status]}</span>
             </div>
+            {v.moderation_status === "rejected" && v.rejection_reason && (
+              <p className="error small">Причина отклонения: {v.rejection_reason}. Исправьте вакансию — она снова уйдёт на проверку.</p>
+            )}
             <div className="tags">
               {v.is_internship && <span className="tag accent">Стажировка</span>}
               {v.skills.map((s) => (

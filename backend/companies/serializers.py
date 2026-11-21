@@ -18,10 +18,11 @@ class CompanySerializer(serializers.ModelSerializer):
             "contact_email",
             "website",
             "moderation_status",
+            "rejection_reason",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "moderation_status", "created_at", "updated_at"]
+        read_only_fields = ["id", "moderation_status", "rejection_reason", "created_at", "updated_at"]
 
     def validate_logo(self, value):
         if value and value.size > MAX_LOGO_BYTES:

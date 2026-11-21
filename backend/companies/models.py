@@ -21,10 +21,15 @@ class Company(models.Model):
     phone = models.CharField("телефон", max_length=32, blank=True)
     contact_email = models.EmailField("контактный email", blank=True)
     website = models.URLField("сайт", blank=True)
-    # Модерацию (A-02) делает администратор позже; новая компания всегда ждёт проверки
+    # A-02: новая или изменённая компания ждёт проверки администратора
     moderation_status = models.CharField(
-        "статус модерации", max_length=16, choices=ModerationStatus.choices, default=ModerationStatus.PENDING
+        "статус модерации",
+        max_length=16,
+        choices=ModerationStatus.choices,
+        default=ModerationStatus.PENDING,
+        db_index=True,
     )
+    rejection_reason = models.CharField("причина отклонения", max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

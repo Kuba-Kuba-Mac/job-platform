@@ -7,8 +7,16 @@ from rest_framework.response import Response
 from accounts.models import Role, User
 from accounts.permissions import IsPlatformAdmin
 from accounts.services import block_user, unblock_user
+from companies.models import Company, ModerationStatus
+from vacancies.models import Vacancy
 
-from .serializers import AdminUserSerializer, BlockSerializer
+from .serializers import (
+    AdminUserSerializer,
+    BlockSerializer,
+    ModerationCompanySerializer,
+    ModerationVacancySerializer,
+    RejectSerializer,
+)
 
 
 @extend_schema_view(
@@ -60,3 +68,63 @@ class AdminUserViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     def unblock(self, request, pk=None):
         user = unblock_user(self.get_object())
         return Response(self.get_serializer(user).data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "status",
+                str,
+                enum=[*ModerationStatus.values, "all"],
+                description="По умолчанию pending — очередь на проверку",
+            )
+        ]
+    )
+)
+class ModerationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """A-02: общая логика очереди модерации — одобрить или отклонить с причиной."""
+
+    permission_classes = [IsPlatformAdmin]
+    lookup_value_regex = r"\d+"
+    base_queryset = None
+
+    def get_queryset(self):
+        qs = self.base_queryset.all()
+        status_param = self.request.query_params.get("status", ModerationStatus.PENDING)
+        if self.action == "list" and status_param != "all":
+            qs = qs.filter(moderation_status=status_param)
+        return qs
+
+    def _decide(self, new_status, reason=""):
+        obj = self.get_object()
+        obj.moderation_status = new_status
+        obj.rejection_reason = reason
+        obj.save(update_fields=["moderation_status", "rejection_reason", "updated_at"])
+        return Response(self.get_serializer(obj).data)
+
+    @extend_schema(request=None)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        return self._decide(ModerationStatus.APPROVED)
+
+    @extend_schema(request=RejectSerializer)
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        serializer = RejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return self._decide(ModerationStatus.REJECTED, serializer.validated_data["reason"])
+
+
+class VacancyModerationViewSet(ModerationViewSet):
+    """GET /api/admin/moderation/vacancies/ — сначала самые старые, чтобы никто не ждал долго."""
+
+    serializer_class = ModerationVacancySerializer
+    base_queryset = (
+        Vacancy.objects.select_related("company").prefetch_related("skills").order_by("created_at")
+    )
+
+
+class CompanyModerationViewSet(ModerationViewSet):
+    serializer_class = ModerationCompanySerializer
+    base_queryset = Company.objects.select_related("owner").order_by("created_at")

@@ -60,6 +60,12 @@ export default function CompanyPage() {
         <h2>{company ? "Профиль компании" : "Создайте профиль компании"}</h2>
         {company && <span className={`badge ${company.moderation_status}`}>{STATUS[company.moderation_status]}</span>}
       </div>
+      {company?.moderation_status === "rejected" && company.rejection_reason && (
+        <p className="error small">Причина отклонения: {company.rejection_reason}. После исправления профиль снова уйдёт на проверку.</p>
+      )}
+      {company?.moderation_status === "pending" && (
+        <p className="muted small">Пока профиль на проверке, ваши вакансии не видны соискателям.</p>
+      )}
       {company?.logo && <img className="logo-preview" src={company.logo} alt="Логотип" />}
       <label>
         Название *

@@ -54,6 +54,7 @@ class Vacancy(models.Model):
     moderation_status = models.CharField(
         "статус модерации", max_length=16, choices=ModerationStatus.choices, default=ModerationStatus.PENDING
     )
+    rejection_reason = models.CharField("причина отклонения", max_length=500, blank=True)
     is_archived = models.BooleanField("в архиве", default=False)
     created_at = models.DateTimeField("создана", auto_now_add=True)
     updated_at = models.DateTimeField("изменена", auto_now=True)

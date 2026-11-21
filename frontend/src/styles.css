@@ -154,3 +154,12 @@ select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .page { font: inherit; min-width: 2.4rem; padding: 0.4rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; color: var(--text); }
 .page.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .page:disabled { opacity: 0.45; cursor: default; }
+/* Заголовок карточки занимает доступное место, бейдж статуса не переносится под длинный заголовок */
+.row.between > :first-child { flex: 1 1 0; min-width: 12ch; }
+.badge { flex-shrink: 0; white-space: nowrap; }
+
+/* A-02: модерация */
+.btn.secondary { background: var(--surface); color: var(--danger); border: 1px solid var(--danger); }
+.btn.danger { background: var(--danger); }
+.decision { display: grid; gap: 0.5rem; border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
